@@ -211,8 +211,15 @@ const TrackPlayer = {
       // Re-play the active track from the beginning (matches RNTP behaviour)
       const track = queue.getActiveTrack();
       if (track) {
+        const index = queue.getActiveIndex();
         await engine.loadAndPlay(track);
         bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
+        emitter.emit(Event.PlaybackActiveTrackChanged, {
+          track,
+          index,
+          lastTrack: null,
+          lastIndex: -1,
+        });
       }
     }
     // Already Playing / Loading / Buffering / Ready → no-op
@@ -227,17 +234,33 @@ const TrackPlayer = {
   },
 
   async stop(): Promise<void> {
+    const lastTrack = queue.getActiveTrack() ?? null;
+    const lastIndex = queue.getActiveIndex();
     await engine.stop();
     await bridge.hide();
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: null,
+      index: -1,
+      lastTrack,
+      lastIndex,
+    });
   },
 
   /**
    * Stop playback and clear the queue entirely.
    */
   async reset(): Promise<void> {
+    const lastTrack = queue.getActiveTrack() ?? null;
+    const lastIndex = queue.getActiveIndex();
     await engine.stop();
     queue.reset();
     await bridge.hide();
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: null,
+      index: -1,
+      lastTrack,
+      lastIndex,
+    });
   },
 
   // --------------------------------------------------------------------------

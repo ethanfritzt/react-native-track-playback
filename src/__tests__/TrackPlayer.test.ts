@@ -96,6 +96,18 @@ describe('setQueue', () => {
     expect(state).toBe(State.Playing);
   });
 
+  it('emits PlaybackActiveTrackChanged with the first track after setQueue + play()', async () => {
+    await setup();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    expect(handler).not.toHaveBeenCalled(); // setQueue alone should not emit
+    await TrackPlayer.play();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ track: expect.objectContaining({ title: 'Track 1' }), index: 0, lastTrack: null, lastIndex: -1 })
+    );
+  });
+
   it('sets the active track to the first item', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
@@ -213,6 +225,16 @@ describe('play / pause', () => {
     // No new streamer created
     expect(getCreatedStreamers()).toHaveLength(0);
   });
+
+  it('play while already Playing does NOT re-emit PlaybackActiveTrackChanged', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.play(); // already playing — no-op
+    expect(handler).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -230,6 +252,18 @@ describe('stop / reset', () => {
     expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
   });
 
+  it('stop emits PlaybackActiveTrackChanged with track: null', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.stop();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ track: null, index: -1, lastTrack: expect.objectContaining({ title: 'Track 1' }) })
+    );
+  });
+
   it('reset clears the queue', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
@@ -237,6 +271,18 @@ describe('stop / reset', () => {
     await TrackPlayer.reset();
     const q = await TrackPlayer.getQueue();
     expect(q).toHaveLength(0);
+  });
+
+  it('reset emits PlaybackActiveTrackChanged with track: null', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.reset();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ track: null, index: -1, lastTrack: expect.objectContaining({ title: 'Track 1' }) })
+    );
   });
 });
 
