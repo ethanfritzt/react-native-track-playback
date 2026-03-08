@@ -33,7 +33,7 @@ function getRNAPPlugin() {
   try {
     // react-native-audio-api ships its plugin at the package root
     // (expo.install.pluginName in their package.json points here)
-    const rnap = require("react-native-audio-api");
+    const rnap = require("react-native-audio-api/app.plugin");
     return rnap.default ?? rnap;
   } catch {
     throw new Error(
