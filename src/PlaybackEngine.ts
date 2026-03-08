@@ -45,6 +45,14 @@ import { emitter } from './EventEmitter';
  *   Otherwise:      position = 0
  *
  * This formula works identically for both StreamerNode and AudioBufferSourceNode.
+ *
+ * ## Concurrency
+ *
+ *   loadAndPlay() is not re-entrant. Each call increments `loadGeneration`. The
+ *   private load helpers check the generation at every async yield point and bail
+ *   out silently if a newer load has superseded them. This ensures that rapid
+ *   track-changes (shuffle, quick skips) never leave a stale streamer running or
+ *   corrupt the engine state.
  */
 export class PlaybackEngine {
   private context: AudioContext | null = null;
@@ -83,6 +91,13 @@ export class PlaybackEngine {
    */
   private streamingAvailable: boolean | undefined = undefined;
 
+  /**
+   * Monotonically incrementing counter. Incremented at the start of every
+   * loadAndPlay() call. Each async helper captures the value at entry and
+   * aborts if it no longer matches — ensuring only the latest load wins.
+   */
+  private loadGeneration = 0;
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -98,9 +113,17 @@ export class PlaybackEngine {
     if (this.streamingAvailable === undefined) {
       try {
         const probe = this.context.createStreamer();
-        // A non-null return means FFmpeg is compiled in and streaming is supported.
-        // We don't start or connect the probe node — just discard it.
         this.streamingAvailable = probe !== null;
+
+        // Immediately stop the probe so the native layer can release its
+        // resources (FFmpeg demuxer context, background thread, network
+        // socket). Without this the probe node stays alive until GC runs,
+        // which on Hermes/JSI is non-deterministic and can prevent subsequent
+        // createStreamer() calls from succeeding if the native layer enforces
+        // a single-active-streamer constraint.
+        if (probe) {
+          try { probe.stop(); } catch { /* not started — safe to ignore */ }
+        }
       } catch {
         this.streamingAvailable = false;
       }
@@ -108,6 +131,8 @@ export class PlaybackEngine {
   }
 
   async destroy(): Promise<void> {
+    // Invalidate any in-flight load so its async continuation is a no-op
+    this.loadGeneration++;
     this.teardownSource();
     this.currentBuffer = null;
     this.currentTrackUrl = null;
@@ -126,18 +151,26 @@ export class PlaybackEngine {
 
   async loadAndPlay(track: Track, startOffset = 0): Promise<void> {
     this.assertReady();
+
+    // Increment generation — any in-flight load from a previous call will
+    // detect the mismatch at its next yield point and abort.
+    const generation = ++this.loadGeneration;
+
     // Tear down previous source before changing state so onEnded doesn't fire
     this.teardownSource();
     this.setState(State.Loading);
 
     try {
       if (this.streamingAvailable) {
-        await this.loadAndPlayStreamer(track, startOffset);
+        await this.loadAndPlayStreamer(track, startOffset, generation);
       } else {
-        await this.loadAndPlayBuffer(track, startOffset);
+        await this.loadAndPlayBuffer(track, startOffset, generation);
       }
     } catch (err) {
-      this.setState(State.Error);
+      // Only update state for the load that is still current
+      if (generation === this.loadGeneration) {
+        this.setState(State.Error);
+      }
       throw err;
     }
   }
@@ -146,13 +179,17 @@ export class PlaybackEngine {
    * StreamerNode path — starts playback almost immediately by streaming
    * the audio progressively rather than downloading the whole file first.
    */
-  private async loadAndPlayStreamer(track: Track, startOffset: number): Promise<void> {
+  private async loadAndPlayStreamer(
+    track: Track,
+    startOffset: number,
+    generation: number,
+  ): Promise<void> {
     const streamer = this.context!.createStreamer();
     if (!streamer) {
       // createStreamer() returned null at runtime despite probe succeeding —
       // fall back to buffer path.
       this.streamingAvailable = false;
-      await this.loadAndPlayBuffer(track, startOffset);
+      await this.loadAndPlayBuffer(track, startOffset, generation);
       return;
     }
 
@@ -185,6 +222,14 @@ export class PlaybackEngine {
       await this.context!.resume();
     }
 
+    // A newer loadAndPlay() may have fired while we awaited context.resume().
+    // If so, our streamer has already been torn down by teardownSource() in
+    // the newer call — bail out without touching state.
+    if (generation !== this.loadGeneration) {
+      try { streamer.stop(); } catch { /* already stopped by teardownSource */ }
+      return;
+    }
+
     // StreamerNode.start() only accepts a `when` parameter (context time to
     // begin playing) — there is no offset parameter unlike AudioBufferSourceNode.
     // The seek offset is handled by the URL's timeOffset param above.
@@ -204,7 +249,11 @@ export class PlaybackEngine {
    * AudioBufferSourceNode path (fallback when FFmpeg / StreamerNode is unavailable).
    * Downloads and decodes the entire audio file before playback begins.
    */
-  private async loadAndPlayBuffer(track: Track, startOffset: number): Promise<void> {
+  private async loadAndPlayBuffer(
+    track: Track,
+    startOffset: number,
+    generation: number,
+  ): Promise<void> {
     let buffer: AudioBuffer;
 
     // Use prefetched buffer if the URL matches — avoids a redundant fetch
@@ -216,6 +265,10 @@ export class PlaybackEngine {
       // Signal that we are now fetching / decoding the audio data
       this.setState(State.Buffering);
       buffer = await decodeAudioData(track.url);
+
+      // A newer loadAndPlay() fired while we were downloading — discard the
+      // decoded buffer and exit. The newer load has already taken ownership.
+      if (generation !== this.loadGeneration) return;
     }
 
     this.currentBuffer = buffer;
@@ -228,6 +281,9 @@ export class PlaybackEngine {
     if (this.context!.state === 'suspended') {
       await this.context!.resume();
     }
+
+    // Check generation again after the async context.resume()
+    if (generation !== this.loadGeneration) return;
 
     this.attachBufferSource(startOffset);
     this.setState(State.Playing);
@@ -253,6 +309,8 @@ export class PlaybackEngine {
   }
 
   async stop(): Promise<void> {
+    // Invalidate any in-flight load
+    this.loadGeneration++;
     this.teardownSource();
     this.currentBuffer = null;
     this.currentTrackUrl = null;

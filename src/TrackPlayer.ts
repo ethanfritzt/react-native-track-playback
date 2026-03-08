@@ -24,10 +24,11 @@ engine.onTrackEnded(async () => {
     const next = queue.getActiveTrack()!;
     const nextIndex = queue.getActiveIndex();
 
-    await Promise.all([
-      engine.loadAndPlay(next),
-      bridge.updateNowPlaying(next, State.Playing, 0),
-    ]);
+    // Audio-start is the critical path — await it alone so the user hears
+    // audio as soon as possible. Notification update is metadata-only and
+    // does not affect playback correctness, so fire it without blocking.
+    await engine.loadAndPlay(next);
+    bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: next,
@@ -105,17 +106,24 @@ const TrackPlayer = {
    * Replace the current queue and begin playback from the first track.
    */
   async setQueue(tracks: Track[]): Promise<void> {
-    // Stop anything currently playing before replacing the queue
-    await engine.stop();
+    // Only stop if something is actively playing or paused — otherwise the
+    // stop() call emits a spurious State.Stopped event and does a redundant
+    // context.resume() native round-trip. loadAndPlay() already calls
+    // teardownSource() internally, so we only need stop() when we have to
+    // release held audio resources (active playback / suspended context).
+    const currentState = engine.getState();
+    if (currentState === State.Playing || currentState === State.Paused) {
+      await engine.stop();
+    }
     queue.setQueue(tracks);
 
     const first = queue.getActiveTrack();
     if (!first) return;
 
-    await Promise.all([
-      engine.loadAndPlay(first),
-      bridge.updateNowPlaying(first, State.Playing, 0),
-    ]);
+    // Await audio start; notification update is metadata-only — fire-and-forget
+    // so the user hears audio without waiting for the OS notification round-trip.
+    await engine.loadAndPlay(first);
+    bridge.updateNowPlaying(first, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: first,
@@ -177,17 +185,20 @@ const TrackPlayer = {
       return;
     }
 
-    if (state === State.Stopped || state === State.None || state === State.Ended) {
+    if (
+      state === State.Stopped ||
+      state === State.None   ||
+      state === State.Ended  ||
+      state === State.Error       // recover from a failed load attempt
+    ) {
       // Re-play the active track from the beginning (matches RNTP behaviour)
       const track = queue.getActiveTrack();
       if (track) {
-        await Promise.all([
-          engine.loadAndPlay(track),
-          bridge.updateNowPlaying(track, State.Playing, 0),
-        ]);
+        await engine.loadAndPlay(track);
+        bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
       }
     }
-    // Already Playing → no-op
+    // Already Playing / Loading / Buffering / Ready → no-op
   },
 
   async pause(): Promise<void> {
@@ -226,10 +237,8 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await Promise.all([
-      engine.loadAndPlay(track),
-      bridge.updateNowPlaying(track, State.Playing, 0),
-    ]);
+    await engine.loadAndPlay(track);
+    bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track,
@@ -273,10 +282,8 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await Promise.all([
-      engine.loadAndPlay(track),
-      bridge.updateNowPlaying(track, State.Playing, 0),
-    ]);
+    await engine.loadAndPlay(track);
+    bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track,

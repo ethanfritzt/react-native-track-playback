@@ -38,25 +38,35 @@ export function useProgress(updateInterval = 1000): Progress {
     buffered: 0,
   });
 
-  // Track whether playback is active so we can skip updates when idle
+  // Only poll while the engine is actively playing — position doesn't change
+  // when paused or stopped, so there is nothing useful to update.
   const isActiveRef = useRef(false);
 
   useEffect(() => {
     const unsub = emitter.on('playback-state', (payload) => {
       const { state } = payload as { state: string };
-      isActiveRef.current = state === 'playing' || state === 'paused';
+      isActiveRef.current = state === 'playing';
     });
     return unsub;
   }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
+      // Skip the update entirely when not playing — avoids a re-render every
+      // second while the player is idle, paused, or stopped.
+      if (!isActiveRef.current) return;
+
+      const position = _getPosition();
       const duration = _getDuration();
-      setProgress({
-        position: _getPosition(),
-        duration,
-        buffered: duration,
-      });
+
+      // Use the functional form of setState and return the previous reference
+      // unchanged when the values haven't moved. This eliminates re-renders when
+      // the engine reports the same position twice in a row (e.g. end of track).
+      setProgress(prev =>
+        prev.position === position && prev.duration === duration
+          ? prev
+          : { position, duration, buffered: duration }
+      );
     }, updateInterval);
 
     return () => clearInterval(id);
