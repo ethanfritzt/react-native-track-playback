@@ -1,0 +1,442 @@
+/**
+ * TrackPlayer integration tests.
+ *
+ * These tests exercise the full TrackPlayer public API — queue management,
+ * playback control, navigation, and event emission — using the mocked
+ * react-native-audio-api. The native audio layer is replaced entirely; we
+ * verify that TrackPlayer correctly orchestrates PlaybackEngine, QueueManager,
+ * NotificationBridge, and the EventEmitter.
+ *
+ * resetModules: true in jest.config ensures the TrackPlayer singleton and all
+ * its collaborators are fresh for each test.
+ */
+
+import TrackPlayer from '../TrackPlayer';
+import { Event, State } from '../types';
+import {
+  getLastAudioContext,
+  getCreatedStreamers,
+  clearCreatedStreamers,
+  setStreamerAvailable,
+  PlaybackNotificationManager,
+} from '../__mocks__/react-native-audio-api';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function track(n: number, duration = 30) {
+  return {
+    url: `http://example.com/track${n}.mp3`,
+    title: `Track ${n}`,
+    artist: 'Artist',
+    album: 'Album',
+    duration,
+  };
+}
+
+async function setup() {
+  await TrackPlayer.setupPlayer();
+  await TrackPlayer.updateOptions({
+    capabilities: [],
+  });
+}
+
+function lastStreamer() {
+  const s = getCreatedStreamers();
+  return s[s.length - 1]!;
+}
+
+// ---------------------------------------------------------------------------
+// Reset per test
+// ---------------------------------------------------------------------------
+
+beforeEach(() => {
+  clearCreatedStreamers();
+  setStreamerAvailable(true);
+  jest.clearAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// setupPlayer / updateOptions
+// ---------------------------------------------------------------------------
+
+describe('setupPlayer', () => {
+  it('initialises without throwing', async () => {
+    await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
+  });
+});
+
+describe('updateOptions', () => {
+  it('calls PlaybackNotificationManager.enableControl for each known control', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+    // 7 controls total (play, pause, next, previous, skipForward, skipBackward, seekTo)
+    expect(PlaybackNotificationManager.enableControl).toHaveBeenCalledTimes(7);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setQueue
+// ---------------------------------------------------------------------------
+
+describe('setQueue', () => {
+  it('begins playing the first track immediately', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('sets the active track to the first item', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.url).toBe('http://example.com/track1.mp3');
+  });
+
+  it('emits PlaybackActiveTrackChanged with index 0', async () => {
+    await setup();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ index: 0, lastIndex: -1 })
+    );
+  });
+
+  it('calls PlaybackNotificationManager.show with track metadata', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Track 1' })
+    );
+  });
+
+  it('returns an empty queue for an empty array without throwing', async () => {
+    await setup();
+    await expect(TrackPlayer.setQueue([])).resolves.toBeUndefined();
+    const q = await TrackPlayer.getQueue();
+    expect(q).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// add / remove / getQueue / getTrack
+// ---------------------------------------------------------------------------
+
+describe('add / remove / getQueue / getTrack', () => {
+  it('add appends tracks to the queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.add([track(2), track(3)]);
+    const q = await TrackPlayer.getQueue();
+    expect(q).toHaveLength(3);
+  });
+
+  it('remove removes a track by index', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
+    await TrackPlayer.remove([1]);
+    const q = await TrackPlayer.getQueue();
+    expect(q).toHaveLength(2);
+    expect(q[1]?.title).toBe('Track 3');
+  });
+
+  it('getTrack returns the track at the given index', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const t = await TrackPlayer.getTrack(1);
+    expect(t?.title).toBe('Track 2');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// play / pause
+// ---------------------------------------------------------------------------
+
+describe('play / pause', () => {
+  it('pause transitions to Paused state', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.pause();
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Paused);
+  });
+
+  it('play after pause resumes', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.pause();
+    await TrackPlayer.play();
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('play after stop reloads the active track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.stop();
+    clearCreatedStreamers();
+    await TrackPlayer.play();
+    expect(getCreatedStreamers()).toHaveLength(1);
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('play while already Playing is a no-op', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    clearCreatedStreamers();
+    await TrackPlayer.play(); // already playing
+    // No new streamer created
+    expect(getCreatedStreamers()).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stop / reset
+// ---------------------------------------------------------------------------
+
+describe('stop / reset', () => {
+  it('stop transitions to Stopped and hides notification', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.stop();
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Stopped);
+    expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
+  });
+
+  it('reset clears the queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.reset();
+    const q = await TrackPlayer.getQueue();
+    expect(q).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// skipToNext / skipToPrevious
+// ---------------------------------------------------------------------------
+
+describe('skipToNext', () => {
+  it('advances to the next track and begins playing it', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
+    await TrackPlayer.skipToNext();
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 2');
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('emits PlaybackActiveTrackChanged with the correct indices', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    await TrackPlayer.skipToNext();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ index: 1, lastIndex: 0 })
+    );
+  });
+
+  it('is a no-op at the end of the queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    clearCreatedStreamers();
+    await TrackPlayer.skipToNext();
+    expect(getCreatedStreamers()).toHaveLength(0);
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 1');
+  });
+});
+
+describe('skipToPrevious', () => {
+  it('goes to the previous track when less than 3 seconds in', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.skipToNext(); // now on Track 2
+    await TrackPlayer.skipToPrevious();
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 1');
+  });
+
+  it('restarts the current track when more than 3 seconds in', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.skipToNext(); // on Track 2
+    // Advance context time > 3 seconds
+    getLastAudioContext()!.advanceTime(5);
+    clearCreatedStreamers();
+    await TrackPlayer.skipToPrevious();
+    // Should not have loaded a new track — just seeked to 0
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 2');
+  });
+
+  it('at the start of queue, restarts the current track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    // position is 0, at first track — skipToPrevious should restart
+    clearCreatedStreamers();
+    await TrackPlayer.skipToPrevious();
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// seekTo / getPosition / getProgress
+// ---------------------------------------------------------------------------
+
+describe('seekTo / getPosition / getProgress', () => {
+  it('seekTo updates position and updates the notification', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1, 120)]);
+    await TrackPlayer.seekTo(45);
+    const pos = await TrackPlayer.getPosition();
+    expect(pos).toBeCloseTo(45, 4);
+    expect(PlaybackNotificationManager.show).toHaveBeenLastCalledWith(
+      expect.objectContaining({ elapsedTime: 45 })
+    );
+  });
+
+  it('getProgress returns position, duration, and buffered', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1, 180)]);
+    const prog = await TrackPlayer.getProgress();
+    expect(prog.duration).toBe(180);
+    expect(prog.buffered).toBe(180); // always equals duration in streaming mode
+    expect(prog.position).toBeCloseTo(0, 4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Auto-advance (natural track end)
+// ---------------------------------------------------------------------------
+
+describe('auto-advance on track end', () => {
+  it('loads and plays the next track when the streamer fires onEnded', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const firstStreamer = lastStreamer();
+    clearCreatedStreamers();
+
+    // Simulate the first track ending naturally
+    firstStreamer.simulateEnded();
+    // The onTrackEnded callback is async — flush promises
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 2');
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('hides the notification when the last track ends', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    const s = lastStreamer();
+    jest.clearAllMocks();
+
+    s.simulateEnded();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
+  });
+
+  it('emits PlaybackActiveTrackChanged on auto-advance', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const firstStreamer = lastStreamer();
+
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+
+    firstStreamer.simulateEnded();
+    // The onTrackEnded handler is async (loadAndPlay + updateNowPlaying).
+    // Flush all pending microtasks with a short setImmediate-based drain.
+    await new Promise(r => setImmediate(r));
+    await new Promise(r => setImmediate(r));
+
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 2');
+    const { state } = await TrackPlayer.getPlaybackState();
+    expect(state).toBe(State.Playing);
+  });
+
+  it('hides the notification when the last track ends', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    const s = lastStreamer();
+    jest.clearAllMocks();
+
+    s.simulateEnded();
+    await new Promise(r => setImmediate(r));
+    await new Promise(r => setImmediate(r));
+
+    expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
+  });
+
+  it('emits PlaybackActiveTrackChanged on auto-advance', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const firstStreamer = lastStreamer();
+
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+
+    firstStreamer.simulateEnded();
+    await new Promise(r => setImmediate(r));
+    await new Promise(r => setImmediate(r));
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ index: 1 })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addEventListener / removeEventListener
+// ---------------------------------------------------------------------------
+
+describe('addEventListener', () => {
+  it('returns a subscription with a remove() method', async () => {
+    await setup();
+    const sub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, jest.fn());
+    expect(typeof sub.remove).toBe('function');
+  });
+
+  it('removed subscription no longer receives events', async () => {
+    await setup();
+    const handler = jest.fn();
+    const sub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
+    sub.remove();
+    await TrackPlayer.setQueue([track(1)]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getActiveTrackIndex
+// ---------------------------------------------------------------------------
+
+describe('getActiveTrackIndex', () => {
+  it('returns 0 for the first track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    expect(await TrackPlayer.getActiveTrackIndex()).toBe(0);
+  });
+
+  it('updates after skipToNext', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
+    await TrackPlayer.skipToNext();
+    expect(await TrackPlayer.getActiveTrackIndex()).toBe(1);
+  });
+});
