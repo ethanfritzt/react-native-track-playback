@@ -59,11 +59,17 @@ function withTrackPlayback(config, options = {}) {
     androidForegroundService = true,
     androidFSTypes = ["mediaPlayback"],
     androidPermissions = [],
+    // FFmpeg is always enabled — it is required for StreamerNode, which provides
+    // true HTTP streaming and eliminates the full-file-download latency on play.
+    // disableFFmpeg: false is the react-native-audio-api default but we
+    // forward it explicitly to make the dependency clear.
   } = options;
 
   const rnapPlugin = getRNAPPlugin();
 
-  // Delegate to react-native-audio-api's plugin with the resolved options
+  // Delegate to react-native-audio-api's plugin with the resolved options.
+  // disableFFmpeg is explicitly set to false — FFmpeg is required for StreamerNode,
+  // which provides true HTTP streaming (no full-file-download before playback starts).
   return withPlugins(config, [
     [
       rnapPlugin,
@@ -77,6 +83,7 @@ function withTrackPlayback(config, options = {}) {
           "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
           ...androidPermissions,
         ],
+        disableFFmpeg: false,
       },
     ],
   ]);

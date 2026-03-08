@@ -24,8 +24,10 @@ engine.onTrackEnded(async () => {
     const next = queue.getActiveTrack()!;
     const nextIndex = queue.getActiveIndex();
 
-    await engine.loadAndPlay(next);
-    await bridge.updateNowPlaying(next, State.Playing, 0);
+    await Promise.all([
+      engine.loadAndPlay(next),
+      bridge.updateNowPlaying(next, State.Playing, 0),
+    ]);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: next,
@@ -110,8 +112,10 @@ const TrackPlayer = {
     const first = queue.getActiveTrack();
     if (!first) return;
 
-    await engine.loadAndPlay(first);
-    await bridge.updateNowPlaying(first, State.Playing, 0);
+    await Promise.all([
+      engine.loadAndPlay(first),
+      bridge.updateNowPlaying(first, State.Playing, 0),
+    ]);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: first,
@@ -177,8 +181,10 @@ const TrackPlayer = {
       // Re-play the active track from the beginning (matches RNTP behaviour)
       const track = queue.getActiveTrack();
       if (track) {
-        await engine.loadAndPlay(track);
-        await bridge.updateNowPlaying(track, State.Playing, 0);
+        await Promise.all([
+          engine.loadAndPlay(track),
+          bridge.updateNowPlaying(track, State.Playing, 0),
+        ]);
       }
     }
     // Already Playing → no-op
@@ -220,8 +226,10 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await engine.loadAndPlay(track);
-    await bridge.updateNowPlaying(track, State.Playing, 0);
+    await Promise.all([
+      engine.loadAndPlay(track),
+      bridge.updateNowPlaying(track, State.Playing, 0),
+    ]);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track,
@@ -265,8 +273,10 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await engine.loadAndPlay(track);
-    await bridge.updateNowPlaying(track, State.Playing, 0);
+    await Promise.all([
+      engine.loadAndPlay(track),
+      bridge.updateNowPlaying(track, State.Playing, 0),
+    ]);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track,

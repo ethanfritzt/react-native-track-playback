@@ -37,12 +37,14 @@ export class NotificationBridge {
     // We iterate over all known RNAP control names to ensure unused ones are
     // explicitly disabled (RNAP doesn't disable by default).
     const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
-    for (const control of allRNAPControls) {
-      const isEnabled = capabilities.some(
-        cap => CAPABILITY_TO_CONTROL[cap] === control
-      );
-      await PlaybackNotificationManager.enableControl(control, isEnabled);
-    }
+    await Promise.all(
+      allRNAPControls.map(control => {
+        const isEnabled = capabilities.some(
+          cap => CAPABILITY_TO_CONTROL[cap] === control
+        );
+        return PlaybackNotificationManager.enableControl(control, isEnabled);
+      })
+    );
 
     // Wire RNAP notification events → package EventEmitter (RNTP Event.* shape)
     this.subscriptions = [
