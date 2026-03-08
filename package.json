@@ -13,6 +13,7 @@
     }
   },
   "files": [
+    "app.plugin.js",
     "dist",
     "plugin",
     "src"
@@ -20,6 +21,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepare": "tsup",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
