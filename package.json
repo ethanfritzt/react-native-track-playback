@@ -11,7 +11,8 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
-    "./app.plugin": "./app.plugin.js"
+    "./app.plugin": "./app.plugin.js",
+    "./app.plugin.js": "./app.plugin.js"
   },
   "files": [
     "app.plugin.js",
