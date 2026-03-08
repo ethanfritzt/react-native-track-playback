@@ -25,6 +25,12 @@ type RNAPSubscription = { remove: () => void };
 export class NotificationBridge {
   private subscriptions: RNAPSubscription[] = [];
   private isSetup = false;
+  /**
+   * Tracks the last-applied enabled/disabled state for each RNAP control name.
+   * Used by setup() to skip enableControl calls for controls that haven't changed,
+   * avoiding unnecessary async work when updateOptions() is called more than once.
+   */
+  private appliedControls: Map<string, boolean> = new Map();
 
   // ---------------------------------------------------------------------------
   // Setup / teardown
@@ -36,12 +42,23 @@ export class NotificationBridge {
     // Enable only the requested controls; disable everything else.
     // We iterate over all known RNAP control names to ensure unused ones are
     // explicitly disabled (RNAP doesn't disable by default).
+    // Only controls whose enabled/disabled state has changed since the last
+    // setup() call are sent — this avoids redundant async work when
+    // updateOptions() is called more than once (e.g. per-track capability changes).
     const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
+    const changed = allRNAPControls.filter(control => {
+      const isEnabled = capabilities.some(
+        cap => CAPABILITY_TO_CONTROL[cap] === control
+      );
+      return this.appliedControls.get(control) !== isEnabled;
+    });
+
     await Promise.all(
-      allRNAPControls.map(control => {
+      changed.map(control => {
         const isEnabled = capabilities.some(
           cap => CAPABILITY_TO_CONTROL[cap] === control
         );
+        this.appliedControls.set(control, isEnabled);
         return PlaybackNotificationManager.enableControl(control, isEnabled);
       })
     );
@@ -79,6 +96,7 @@ export class NotificationBridge {
     this.subscriptions.forEach(s => s.remove());
     this.subscriptions = [];
     this.isSetup = false;
+    this.appliedControls.clear();
   }
 
   // ---------------------------------------------------------------------------

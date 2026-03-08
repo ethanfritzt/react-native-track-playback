@@ -21,6 +21,13 @@ let _getDuration: () => number = () => 0;
 let _getState: () => State = () => State.None;
 
 /**
+ * True once TrackPlayer.setupPlayer() has called _registerProgressGetters().
+ * Guards the mount snapshot in useProgress so we never read from the default
+ * no-op stubs (which silently return 0 / State.None before setup completes).
+ */
+let _isSetup = false;
+
+/**
  * Called once during TrackPlayer.setupPlayer() to wire up the engine getters.
  * Not part of the public API.
  */
@@ -32,6 +39,7 @@ export function _registerProgressGetters(
   _getPosition = getPosition;
   _getDuration = getDuration;
   _getState = getState;
+  _isSetup = true;
 }
 
 export function useProgress(updateInterval = 1000): Progress {
@@ -48,7 +56,11 @@ export function useProgress(updateInterval = 1000): Progress {
   // Seed isActiveRef and snapshot current progress on mount. This handles the
   // case where the component mounts while a track is already playing (e.g. the
   // miniplayer appearing mid-playback after navigation).
+  // Guard: skip the read entirely if setupPlayer() hasn't been called yet —
+  // the default stubs return 0 / State.None and would produce a misleading
+  // initial snapshot.
   useEffect(() => {
+    if (!_isSetup) return;
     const state = _getState();
     if (state === State.Playing) {
       isActiveRef.current = true;

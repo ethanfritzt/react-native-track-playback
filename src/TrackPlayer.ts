@@ -134,7 +134,7 @@ const TrackPlayer = {
     queue.remove(indexOrIndices);
   },
 
-  async getQueue(): Promise<Track[]> {
+  async getQueue(): Promise<readonly Track[]> {
     return queue.getQueue();
   },
 

@@ -138,8 +138,8 @@ export class QueueManager {
   // Queries
   // ---------------------------------------------------------------------------
 
-  getQueue(): Track[] {
-    return [...this.queue];
+  getQueue(): readonly Track[] {
+    return this.queue;
   }
 
   getTrack(index: number): Track | undefined {
