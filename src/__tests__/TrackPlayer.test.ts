@@ -81,11 +81,11 @@ describe('updateOptions', () => {
 // ---------------------------------------------------------------------------
 
 describe('setQueue', () => {
-  it('does NOT begin playback — state remains None after setQueue alone', async () => {
+  it('does NOT begin playback — state is Stopped after setQueue alone', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     const { state } = await TrackPlayer.getPlaybackState();
-    expect(state).toBe(State.None);
+    expect(state).toBe(State.Stopped);
   });
 
   it('begins playing after setQueue + play()', async () => {

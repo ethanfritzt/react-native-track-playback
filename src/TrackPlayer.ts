@@ -106,16 +106,16 @@ const TrackPlayer = {
    * Replace the current queue without starting playback — matches RNTP semantics
    * exactly. The caller must explicitly invoke play() to begin audio.
    *
-   * If something is already playing or paused, stop it first so released audio
-   * resources don't block the new queue. We deliberately do NOT call
-   * loadAndPlay() here so that setQueue() followed by play() behaves identically
-   * to RNTP — i.e. the app controls when audio starts.
+   * Always stops the engine before replacing the queue. This handles all states:
+   * - Playing / Paused: tears down the active source node
+   * - Loading / Buffering: increments loadGeneration to cancel the in-flight load
+   * - Stopped / Ended / None: no-op on audio state, just resets cleanly
+   *
+   * We deliberately do NOT call loadAndPlay() here so that setQueue() followed
+   * by play() behaves identically to RNTP — i.e. the app controls when audio starts.
    */
   async setQueue(tracks: Track[]): Promise<void> {
-    const currentState = engine.getState();
-    if (currentState === State.Playing || currentState === State.Paused) {
-      await engine.stop();
-    }
+    await engine.stop();
     queue.setQueue(tracks);
   },
 
@@ -202,27 +202,28 @@ const TrackPlayer = {
       return;
     }
 
-    if (
-      state === State.Stopped ||
-      state === State.None   ||
-      state === State.Ended  ||
-      state === State.Error       // recover from a failed load attempt
-    ) {
-      // Re-play the active track from the beginning (matches RNTP behaviour)
-      const track = queue.getActiveTrack();
-      if (track) {
-        const index = queue.getActiveIndex();
-        await engine.loadAndPlay(track);
-        bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
-        emitter.emit(Event.PlaybackActiveTrackChanged, {
-          track,
-          index,
-          lastTrack: null,
-          lastIndex: -1,
-        });
-      }
+    if (state === State.Playing) {
+      // Already playing — no-op
+      return;
     }
-    // Already Playing / Loading / Buffering / Ready → no-op
+
+    // For all other states (Stopped, None, Ended, Error, Loading, Buffering, Ready):
+    // cancel any in-flight load and start the active track from the beginning.
+    // Loading/Buffering/Ready can occur if setQueue() was called while a previous
+    // load was in-flight — engine.loadAndPlay() increments loadGeneration, which
+    // cancels the stale load before starting fresh.
+    const track = queue.getActiveTrack();
+    if (track) {
+      const index = queue.getActiveIndex();
+      await engine.loadAndPlay(track);
+      bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
+      emitter.emit(Event.PlaybackActiveTrackChanged, {
+        track,
+        index,
+        lastTrack: null,
+        lastIndex: -1,
+      });
+    }
   },
 
   async pause(): Promise<void> {
