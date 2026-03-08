@@ -27,15 +27,24 @@ export class QueueManager {
   }
 
   /**
-   * Remove tracks by index (single or array).
+   * Remove tracks by index or Track object (single or array).
+   * When Track objects are passed, they are resolved to indices by URL.
    * Mirrors the RNTP remove() signature.
    * Adjusts currentIndex after removal — if the current track was removed,
    * clamps to the new last index.
    */
-  remove(indexOrIndices: number | number[]): void {
-    const indices = new Set(
-      Array.isArray(indexOrIndices) ? indexOrIndices : [indexOrIndices]
-    );
+  remove(indexOrIndices: number | number[] | Track | Track[]): void {
+    // Resolve any Track objects to their queue indices
+    const resolved = (Array.isArray(indexOrIndices) ? indexOrIndices : [indexOrIndices]).map(
+      (item): number => {
+        if (typeof item === 'number') return item;
+        // Track object — find by URL
+        const idx = this.queue.findIndex(t => t.url === item.url);
+        return idx; // -1 if not found; will be filtered below
+      }
+    ).filter(i => i >= 0);
+
+    const indices = new Set(resolved);
 
     const removingCurrent = indices.has(this.currentIndex);
     const removedBefore = [...indices].filter(i => i < this.currentIndex).length;

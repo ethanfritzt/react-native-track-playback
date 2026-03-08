@@ -133,10 +133,11 @@ const TrackPlayer = {
   },
 
   /**
-   * Remove tracks by index (single number or array of numbers).
-   * Matches RNTP's remove() signature.
+   * Remove tracks by index or Track object (single or array).
+   * Matches RNTP's remove() signature — also accepts Track objects for
+   * convenience (resolved to indices by URL).
    */
-  async remove(indexOrIndices: number | number[]): Promise<void> {
+  async remove(indexOrIndices: number | number[] | Track | Track[]): Promise<void> {
     queue.remove(indexOrIndices);
   },
 

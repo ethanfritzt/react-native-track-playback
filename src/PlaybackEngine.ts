@@ -84,10 +84,15 @@ export class PlaybackEngine {
         this.prefetchBuffer = null;
         this.prefetchUrl = null;
       } else {
+        // Signal that we are now fetching / decoding the audio data
+        this.setState(State.Buffering);
         buffer = await decodeAudioData(track.url);
       }
 
       this.currentBuffer = buffer;
+
+      // Decode complete — signal ready before starting the source node
+      this.setState(State.Ready);
 
       // If context was suspended (e.g. after a pause from a previous track),
       // resume it so playback actually starts
