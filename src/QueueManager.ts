@@ -1,0 +1,142 @@
+import { Track } from './types';
+
+/**
+ * Pure-JS queue manager. No audio dependencies — fully synchronous and
+ * unit-testable in isolation.
+ */
+export class QueueManager {
+  private queue: Track[] = [];
+  private currentIndex: number = -1;
+
+  // ---------------------------------------------------------------------------
+  // Mutation
+  // ---------------------------------------------------------------------------
+
+  /** Replace the entire queue. Resets current index to 0. */
+  setQueue(tracks: Track[]): void {
+    this.queue = [...tracks];
+    this.currentIndex = tracks.length > 0 ? 0 : -1;
+  }
+
+  /** Append tracks. If queue was empty, sets current index to 0. */
+  add(tracks: Track[]): void {
+    this.queue.push(...tracks);
+    if (this.currentIndex === -1 && this.queue.length > 0) {
+      this.currentIndex = 0;
+    }
+  }
+
+  /**
+   * Remove tracks by index (single or array).
+   * Mirrors the RNTP remove() signature.
+   * Adjusts currentIndex after removal — if the current track was removed,
+   * clamps to the new last index.
+   */
+  remove(indexOrIndices: number | number[]): void {
+    const indices = new Set(
+      Array.isArray(indexOrIndices) ? indexOrIndices : [indexOrIndices]
+    );
+
+    const removingCurrent = indices.has(this.currentIndex);
+    const removedBefore = [...indices].filter(i => i < this.currentIndex).length;
+
+    this.queue = this.queue.filter((_, i) => !indices.has(i));
+
+    if (this.queue.length === 0) {
+      this.currentIndex = -1;
+    } else if (removingCurrent) {
+      // Land on the track that slid into the current slot, or clamp to last
+      this.currentIndex = Math.min(
+        this.currentIndex - removedBefore,
+        this.queue.length - 1
+      );
+    } else {
+      this.currentIndex -= removedBefore;
+    }
+  }
+
+  /** Clear queue and reset state. */
+  reset(): void {
+    this.queue = [];
+    this.currentIndex = -1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Navigation
+  // ---------------------------------------------------------------------------
+
+  /** Advance to next track. Returns false if already at the end. */
+  skipToNext(): boolean {
+    if (this.currentIndex < this.queue.length - 1) {
+      this.currentIndex++;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Go to previous track. Returns false if already at the start.
+   * Note: TrackPlayer.skipToPrevious() handles the "restart if >3s" logic
+   * itself before calling this — QueueManager is only responsible for index.
+   */
+  skipToPrevious(): boolean {
+    if (this.currentIndex > 0) {
+      this.currentIndex--;
+      return true;
+    }
+    return false;
+  }
+
+  skipToIndex(index: number): void {
+    if (index >= 0 && index < this.queue.length) {
+      this.currentIndex = index;
+    }
+  }
+
+  /**
+   * Shuffle the queue in-place using Fisher-Yates.
+   * The currently playing track is kept at index 0 so playback is uninterrupted.
+   */
+  shuffle(): void {
+    if (this.queue.length <= 1) return;
+
+    const current = this.currentIndex >= 0 ? this.queue[this.currentIndex] : undefined;
+    const rest = this.queue.filter((_, i) => i !== this.currentIndex);
+
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rest[i], rest[j]] = [rest[j]!, rest[i]!];
+    }
+
+    this.queue = current ? [current, ...rest] : rest;
+    this.currentIndex = current ? 0 : -1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Queries
+  // ---------------------------------------------------------------------------
+
+  getQueue(): Track[] {
+    return [...this.queue];
+  }
+
+  getTrack(index: number): Track | undefined {
+    return this.queue[index];
+  }
+
+  getActiveTrack(): Track | undefined {
+    return this.currentIndex >= 0 ? this.queue[this.currentIndex] : undefined;
+  }
+
+  getActiveIndex(): number {
+    return this.currentIndex;
+  }
+
+  hasNext(): boolean {
+    return this.currentIndex >= 0 && this.currentIndex < this.queue.length - 1;
+  }
+
+  hasPrevious(): boolean {
+    return this.currentIndex > 0;
+  }
+}

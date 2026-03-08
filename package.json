@@ -1,0 +1,61 @@
+{
+  "name": "react-native-track-playback",
+  "version": "0.1.0",
+  "description": "A drop-in replacement for react-native-track-player built on react-native-audio-api",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "react-native",
+    "audio",
+    "music",
+    "player",
+    "track-player",
+    "expo"
+  ],
+  "license": "MIT",
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-track-player"
+      ]
+    },
+    "plugin": "./plugin/index.js"
+  },
+  "peerDependencies": {
+    "@expo/config-plugins": ">=8.0.0",
+    "react": ">=18.0.0",
+    "react-native": ">=0.73.0",
+    "react-native-audio-api": ">=0.11.0"
+  },
+  "peerDependenciesMeta": {
+    "@expo/config-plugins": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.28",
+    "react": "^19.2.4",
+    "react-native": "^0.84.1",
+    "react-native-audio-api": "^0.11.6",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
