@@ -69,7 +69,8 @@ const TrackPlayer = {
     // Wire engine getters into the useProgress hook without creating circular imports
     _registerProgressGetters(
       () => engine.getPosition(),
-      () => engine.getDuration()
+      () => engine.getDuration(),
+      () => engine.getState(),
     );
   },
 
