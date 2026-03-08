@@ -103,40 +103,20 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   /**
-   * Replace the current queue and begin playback from the first track.
+   * Replace the current queue without starting playback — matches RNTP semantics
+   * exactly. The caller must explicitly invoke play() to begin audio.
+   *
+   * If something is already playing or paused, stop it first so released audio
+   * resources don't block the new queue. We deliberately do NOT call
+   * loadAndPlay() here so that setQueue() followed by play() behaves identically
+   * to RNTP — i.e. the app controls when audio starts.
    */
   async setQueue(tracks: Track[]): Promise<void> {
-    // Only stop if something is actively playing or paused — otherwise the
-    // stop() call emits a spurious State.Stopped event and does a redundant
-    // context.resume() native round-trip. loadAndPlay() already calls
-    // teardownSource() internally, so we only need stop() when we have to
-    // release held audio resources (active playback / suspended context).
     const currentState = engine.getState();
     if (currentState === State.Playing || currentState === State.Paused) {
       await engine.stop();
     }
     queue.setQueue(tracks);
-
-    const first = queue.getActiveTrack();
-    if (!first) return;
-
-    // Await audio start; notification update is metadata-only — fire-and-forget
-    // so the user hears audio without waiting for the OS notification round-trip.
-    await engine.loadAndPlay(first);
-    bridge.updateNowPlaying(first, State.Playing, 0).catch(console.error);
-
-    emitter.emit(Event.PlaybackActiveTrackChanged, {
-      track: first,
-      index: 0,
-      lastTrack: null,
-      lastIndex: -1,
-    });
-
-    // Prefetch second track in the background
-    const second = queue.getTrack(1);
-    if (second) {
-      engine.prefetchNext(second).catch(() => { /* non-fatal */ });
-    }
   },
 
   /** Append tracks to the end of the queue. */
