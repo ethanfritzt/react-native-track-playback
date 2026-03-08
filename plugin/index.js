@@ -1,5 +1,5 @@
 // @ts-check
-'use strict';
+"use strict";
 
 /**
  * Expo config plugin for react-native-track-playback.
@@ -23,7 +23,7 @@
  *   }
  */
 
-const { withPlugins, createRunOncePlugin } = require('@expo/config-plugins');
+const { withPlugins, createRunOncePlugin } = require("@expo/config-plugins");
 
 /**
  * Attempt to resolve react-native-audio-api's config plugin.
@@ -33,13 +33,13 @@ function getRNAPPlugin() {
   try {
     // react-native-audio-api ships its plugin at the package root
     // (expo.install.pluginName in their package.json points here)
-    const rnap = require('react-native-audio-api/plugin');
+    const rnap = require("react-native-audio-api");
     return rnap.default ?? rnap;
   } catch {
     throw new Error(
-      '[react-native-track-playback] Could not find react-native-audio-api plugin.\n' +
-      'Make sure react-native-audio-api is installed:\n' +
-      '  npx expo install react-native-audio-api\n'
+      "[react-native-track-playback] Could not find react-native-audio-api plugin.\n" +
+        "Make sure react-native-audio-api is installed:\n" +
+        "  npx expo install react-native-audio-api\n",
     );
   }
 }
@@ -57,7 +57,7 @@ function withTrackPlayback(config, options = {}) {
   const {
     iosBackgroundMode = true,
     androidForegroundService = true,
-    androidFSTypes = ['mediaPlayback'],
+    androidFSTypes = ["mediaPlayback"],
     androidPermissions = [],
   } = options;
 
@@ -72,9 +72,9 @@ function withTrackPlayback(config, options = {}) {
         androidForegroundService,
         androidFSTypes,
         androidPermissions: [
-          'android.permission.MODIFY_AUDIO_SETTINGS',
-          'android.permission.FOREGROUND_SERVICE',
-          'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+          "android.permission.MODIFY_AUDIO_SETTINGS",
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
           ...androidPermissions,
         ],
       },
@@ -84,6 +84,6 @@ function withTrackPlayback(config, options = {}) {
 
 module.exports = createRunOncePlugin(
   withTrackPlayback,
-  'react-native-track-playback',
-  '0.1.0'
+  "react-native-track-playback",
+  "0.1.0",
 );
