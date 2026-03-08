@@ -429,6 +429,83 @@ describe('addEventListener', () => {
 });
 
 // ---------------------------------------------------------------------------
+// updateMetadataForTrack
+// ---------------------------------------------------------------------------
+
+describe('updateMetadataForTrack', () => {
+  it('patches the stored track in the queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.updateMetadataForTrack(1, { title: 'Patched' });
+    const t = await TrackPlayer.getTrack(1);
+    expect(t?.title).toBe('Patched');
+  });
+
+  it('updates the notification when patching the active track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    jest.clearAllMocks();
+    await TrackPlayer.updateMetadataForTrack(0, { artwork: 'https://example.com/art.jpg' });
+    expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
+      expect.objectContaining({ artwork: 'https://example.com/art.jpg' })
+    );
+  });
+
+  it('does NOT update the notification when patching a non-active track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    jest.clearAllMocks();
+    await TrackPlayer.updateMetadataForTrack(1, { title: 'Patched' });
+    expect(PlaybackNotificationManager.show).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for an out-of-bounds index', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await expect(TrackPlayer.updateMetadataForTrack(99, { title: 'x' })).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateNowPlayingMetadata
+// ---------------------------------------------------------------------------
+
+describe('updateNowPlayingMetadata', () => {
+  it('updates the notification with merged metadata', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    jest.clearAllMocks();
+    await TrackPlayer.updateNowPlayingMetadata({ artwork: 'https://example.com/art.jpg' });
+    expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Track 1',
+        artwork: 'https://example.com/art.jpg',
+      })
+    );
+  });
+
+  it('does not mutate the stored track in the queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    await TrackPlayer.updateNowPlayingMetadata({ title: 'Override' });
+    const stored = await TrackPlayer.getActiveTrack();
+    expect(stored?.title).toBe('Track 1'); // original unchanged
+  });
+
+  it('is a no-op when the queue is empty', async () => {
+    await setup();
+    await TrackPlayer.reset();
+    jest.clearAllMocks();
+    await expect(TrackPlayer.updateNowPlayingMetadata({ title: 'x' })).resolves.toBeUndefined();
+    expect(PlaybackNotificationManager.show).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getActiveTrackIndex
 // ---------------------------------------------------------------------------
 

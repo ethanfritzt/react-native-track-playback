@@ -1,4 +1,4 @@
-import { Track, State, Event, Capability, PlaybackState, UpdateOptions } from './types';
+import { Track, TrackMetadata, State, Event, Capability, PlaybackState, UpdateOptions } from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
@@ -147,6 +147,43 @@ const TrackPlayer = {
 
   async getActiveTrackIndex(): Promise<number> {
     return queue.getActiveIndex();
+  },
+
+  /**
+   * Patch metadata fields on a queued track in-place.
+   * If the patched track is the currently active track, the system notification
+   * and lock screen are updated immediately.
+   *
+   * `url` cannot be changed here — use setQueue() or add() for that.
+   * Mirrors RNTP's updateMetadataForTrack().
+   */
+  async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
+    const updated = queue.updateTrack(index, metadata);
+    if (!updated) return;
+
+    // Only refresh the notification if this is the active track
+    if (index === queue.getActiveIndex()) {
+      const track = queue.getActiveTrack()!;
+      await bridge.updateNowPlaying(track, engine.getState(), engine.getPosition());
+    }
+  },
+
+  /**
+   * Update the system notification / lock screen display only — does not
+   * mutate the track stored in the queue. Fields are merged with the active
+   * track's existing data, so only the fields you pass are overridden.
+   *
+   * Use this for ephemeral display updates (e.g. artwork arriving late, live
+   * stream title changes) without permanently altering the queued track data.
+   * Mirrors RNTP's updateNowPlayingMetadata().
+   */
+  async updateNowPlayingMetadata(metadata: TrackMetadata): Promise<void> {
+    const track = queue.getActiveTrack();
+    if (!track) return;
+
+    // Merge metadata over the active track without mutating the queue
+    const merged: Track = { ...track, ...metadata };
+    await bridge.updateNowPlaying(merged, engine.getState(), engine.getPosition());
   },
 
   // --------------------------------------------------------------------------

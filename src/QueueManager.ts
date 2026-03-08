@@ -1,4 +1,4 @@
-import { Track } from './types';
+import { Track, TrackMetadata } from './types';
 
 /**
  * Pure-JS queue manager. No audio dependencies — fully synchronous and
@@ -62,6 +62,19 @@ export class QueueManager {
     } else {
       this.currentIndex -= removedBefore;
     }
+  }
+
+  /**
+   * Merge metadata fields into the track at the given index in-place.
+   * `url` is intentionally excluded — changing the URL would require
+   * stopping and re-loading audio, which is the caller's responsibility.
+   * Returns true if the index was valid, false otherwise.
+   */
+  updateTrack(index: number, patch: TrackMetadata): boolean {
+    if (index < 0 || index >= this.queue.length) return false;
+    // Object.assign mutates in-place — no new array allocation needed
+    Object.assign(this.queue[index]!, patch);
+    return true;
   }
 
   /** Clear queue and reset state. */

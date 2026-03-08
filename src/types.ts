@@ -10,6 +10,14 @@ export interface Track {
   [key: string]: unknown;
 }
 
+/**
+ * Patchable metadata fields on a Track — everything except `url`.
+ * Used by updateMetadataForTrack() and updateNowPlayingMetadata() to update
+ * track info after the track has already been queued (e.g. artwork arriving late).
+ * Mirrors RNTP's TrackMetadataBase type.
+ */
+export type TrackMetadata = Omit<Track, 'url'>;
+
 export enum State {
   None      = 'none',
   Loading   = 'loading',

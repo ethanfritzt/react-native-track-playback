@@ -260,3 +260,53 @@ describe('getTrack', () => {
     expect(q.getTrack(5)).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// updateTrack
+// ---------------------------------------------------------------------------
+
+describe('updateTrack', () => {
+  it('merges metadata fields into the track at the given index', () => {
+    const q = makeQueue(1, 2, 3);
+    q.updateTrack(1, { title: 'Updated', artwork: 'https://example.com/art.jpg' });
+    expect(q.getTrack(1)?.title).toBe('Updated');
+    expect(q.getTrack(1)?.artwork).toBe('https://example.com/art.jpg');
+  });
+
+  it('does not affect other tracks', () => {
+    const q = makeQueue(1, 2, 3);
+    q.updateTrack(1, { title: 'Updated' });
+    expect(q.getTrack(0)?.title).toBe('Track 1');
+    expect(q.getTrack(2)?.title).toBe('Track 3');
+  });
+
+  it('only patches provided fields — existing fields are preserved', () => {
+    const q = makeQueue(1, 2);
+    q.updateTrack(0, { artwork: 'https://example.com/art.jpg' });
+    // title was set by makeQueue — it should be unchanged
+    expect(q.getTrack(0)?.title).toBe('Track 1');
+    expect(q.getTrack(0)?.artwork).toBe('https://example.com/art.jpg');
+  });
+
+  it('returns true for a valid index', () => {
+    const q = makeQueue(1, 2);
+    expect(q.updateTrack(0, { title: 'New' })).toBe(true);
+  });
+
+  it('returns false and does nothing for an out-of-bounds index', () => {
+    const q = makeQueue(1);
+    expect(q.updateTrack(99, { title: 'New' })).toBe(false);
+    expect(q.getTrack(0)?.title).toBe('Track 1');
+  });
+
+  it('returns false for a negative index', () => {
+    const q = makeQueue(1);
+    expect(q.updateTrack(-1, { title: 'New' })).toBe(false);
+  });
+
+  it('getActiveTrack reflects the updated metadata immediately', () => {
+    const q = makeQueue(1, 2);
+    q.updateTrack(0, { artist: 'New Artist' });
+    expect(q.getActiveTrack()?.artist).toBe('New Artist');
+  });
+});
