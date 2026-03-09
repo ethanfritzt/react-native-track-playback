@@ -75,6 +75,22 @@ const TrackPlayer = {
   },
 
   /**
+   * Tear down the player completely — stops playback, clears the queue, destroys
+   * the native AudioContext, and removes notification subscriptions.
+   *
+   * Call this when you need to fully reset the player (e.g. during hot reload
+   * cleanup in development, or when the player is no longer needed).
+   *
+   * After calling destroy(), you must call setupPlayer() again before using
+   * any other TrackPlayer methods.
+   */
+  async destroy(): Promise<void> {
+    await engine.destroy();
+    bridge.teardown();
+    queue.reset();
+  },
+
+  /**
    * Configure playback capabilities (controls shown in the system notification).
    * Equivalent to RNTP's updateOptions().
    */
