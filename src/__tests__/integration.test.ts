@@ -352,6 +352,7 @@ describe('Scenario 5: notification lifecycle across a full session', () => {
       expect.objectContaining({ title: 'Track 2' }),
     );
 
+    await flushAsync();
     const s2 = lastStreamer();
     jest.clearAllMocks();
     s2.simulateEnded();
@@ -446,6 +447,7 @@ describe('Scenario 7: reset() clears the entire session', () => {
 
     await TrackPlayer.setQueue([track(2), track(3)]);
     await TrackPlayer.play();
+    await flushAsync();
 
     expect(await TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
     expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
@@ -640,11 +642,10 @@ describe('Bug #10: seekTo with null createStreamer', () => {
     await TrackPlayer.setQueue([track(1, 120), track(2)]);
     await TrackPlayer.play();
 
+    const seekStreamer = lastStreamer();
     clearCreatedStreamers();
     await TrackPlayer.seekTo(60);
 
-    const seekStreamer = lastStreamer();
-    clearCreatedStreamers();
     seekStreamer.simulateEnded();
     await flushAsync();
 
