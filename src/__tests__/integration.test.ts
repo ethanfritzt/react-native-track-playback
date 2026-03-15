@@ -507,3 +507,230 @@ describe('Scenario 8: event listener cleanup', () => {
     expect(h2).toHaveBeenCalledTimes(2);
   });
 });
+
+// ===========================================================================
+// Bug #8 — onEnded double-fire
+// ===========================================================================
+
+describe('Bug #8: onEnded double-fire', () => {
+  // BUG #8 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #8] second onEnded on the same streamer does NOT kill the next track', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 30 },
+      { url: 'http://example.com/t2.mp3', title: 'Track 2', artist: 'A', album: 'B', duration: 30 },
+      { url: 'http://example.com/t3.mp3', title: 'Track 3', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    const streamers = getCreatedStreamers();
+    const streamer1 = streamers[streamers.length - 1]!;
+    clearCreatedStreamers();
+
+    // First fire — normal auto-advance to Track 2
+    streamer1.simulateEnded();
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    expect((await TrackPlayer.getActiveTrack())?.title).toBe('Track 2');
+    expect((await TrackPlayer.getPlaybackState()).state).toBe(State.Playing);
+
+    // Second fire — native buffer-cleanup duplicate; must be ignored
+    streamer1.simulateEnded(); // BUG #8: on unfixed code this kills Track 2
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    expect((await TrackPlayer.getActiveTrack())?.title).toBe('Track 2');
+    expect((await TrackPlayer.getPlaybackState()).state).toBe(State.Playing);
+  });
+
+  // BUG #8 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #8] rapid double-fire causes exactly ONE auto-advance, not two', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    const advancedIndices: number[] = [];
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (payload: any) => {
+      if (payload.track !== null && payload.index > 0) advancedIndices.push(payload.index);
+    });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 30 },
+      { url: 'http://example.com/t2.mp3', title: 'Track 2', artist: 'A', album: 'B', duration: 30 },
+      { url: 'http://example.com/t3.mp3', title: 'Track 3', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    const streamers = getCreatedStreamers();
+    const streamer1 = streamers[streamers.length - 1]!;
+
+    // Fire twice in the same tick — simulates native double callback
+    streamer1.simulateEnded();
+    streamer1.simulateEnded(); // BUG #8: triggers a second premature advance
+
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    expect(advancedIndices).toHaveLength(1);      // only ONE advance expected
+    expect(advancedIndices[0]).toBe(1);
+  });
+});
+
+// ===========================================================================
+// Bug #9 — Silent error swallowing on auto-advance failure
+// ===========================================================================
+
+describe('Bug #9: silent error swallow on auto-advance failure', () => {
+  // BUG #9 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #9] emits PlaybackError when loadAndPlay throws during auto-advance', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 30 },
+      { url: 'http://example.com/t2.mp3', title: 'Track 2', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    const errors: unknown[] = [];
+    TrackPlayer.addEventListener(Event.PlaybackError, (payload: any) => { errors.push(payload); });
+
+    // Make the next createStreamer() return a non-functional node
+    const ctx = getLastAudioContext()!;
+    jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce({
+      connect: jest.fn(),
+      initialize: jest.fn().mockReturnValue(false),
+      start: jest.fn(),
+      stop: jest.fn(),
+      onEnded: null,
+    } as any);
+
+    const streamers = getCreatedStreamers();
+    streamers[streamers.length - 1]!.simulateEnded();
+
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    // BUG #9: currently errors.length === 0 (error silently swallowed)
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+// ===========================================================================
+// Bug #10 — seekTo with null createStreamer
+// ===========================================================================
+
+describe('Bug #10: seekTo with null createStreamer leaves ghost Playing state', () => {
+  // BUG #10 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #10] seekTo with null createStreamer does not leave engine Playing with no source', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 120 },
+    ]);
+    await TrackPlayer.play();
+
+    // Force the next createStreamer() call to return null
+    const ctx = getLastAudioContext()!;
+    clearCreatedStreamers();
+    jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce(null);
+
+    await TrackPlayer.seekTo(30);
+
+    const streamersAfterSeek = getCreatedStreamers();
+    const { state } = await TrackPlayer.getPlaybackState();
+
+    // BUG #10: state is Playing even though no streamer was created
+    const isPlayingWithNoSource = state === State.Playing && streamersAfterSeek.length === 0;
+    expect(isPlayingWithNoSource).toBe(false);
+  });
+
+  it('valid seekTo does not break subsequent auto-advance', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 120 },
+      { url: 'http://example.com/t2.mp3', title: 'Track 2', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    clearCreatedStreamers();
+    await TrackPlayer.seekTo(60);
+
+    expect((await TrackPlayer.getPlaybackState()).state).toBe(State.Playing);
+
+    const streamers = getCreatedStreamers();
+    const seekStreamer = streamers[streamers.length - 1]!;
+    clearCreatedStreamers();
+
+    seekStreamer.simulateEnded();
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    expect((await TrackPlayer.getActiveTrack())?.title).toBe('Track 2');
+    expect((await TrackPlayer.getPlaybackState()).state).toBe(State.Playing);
+  });
+});
+
+// ===========================================================================
+// Bug #11 — End-of-queue doesn't reset state or emit null track event
+// ===========================================================================
+
+describe('Bug #11: end-of-queue cleanup', () => {
+  // BUG #11 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #11] emits PlaybackActiveTrackChanged(null) when the last track finishes', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    let receivedNullEvent = false;
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (payload: any) => {
+      if (payload.track === null) receivedNullEvent = true;
+    });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    const streamers = getCreatedStreamers();
+    streamers[streamers.length - 1]!.simulateEnded();
+
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    // BUG #11: event never emitted on unfixed code
+    expect(receivedNullEvent).toBe(true);
+  });
+
+  // BUG #11 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #11] engine state is Stopped (not Ended/Playing) after queue completes', async () => {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({ capabilities: [] });
+
+    await TrackPlayer.setQueue([
+      { url: 'http://example.com/t1.mp3', title: 'Track 1', artist: 'A', album: 'B', duration: 30 },
+    ]);
+    await TrackPlayer.play();
+
+    const streamers = getCreatedStreamers();
+    streamers[streamers.length - 1]!.simulateEnded();
+
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
+
+    const { state } = await TrackPlayer.getPlaybackState();
+    // BUG #11: currently State.Ended on unfixed code
+    expect(state).toBe(State.Stopped);
+  });
+});
