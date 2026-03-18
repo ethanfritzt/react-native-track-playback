@@ -43,8 +43,16 @@ engine.onTrackEnded(async () => {
       engine.prefetchNext(upcoming).catch(() => { /* non-fatal */ });
     }
   } else {
-    // Reached end of queue
+    // Reached end of queue — reset engine to Stopped and notify listeners so
+    // useProgress stops polling and active-track consumers see null.
+    await engine.stop();
     await bridge.hide();
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: null,
+      index: -1,
+      lastTrack,
+      lastIndex,
+    });
   }
 });
 
