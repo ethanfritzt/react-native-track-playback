@@ -214,8 +214,8 @@ export class PlaybackEngine {
         this.setState(State.Ended);
         this.streamerNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-        });
+        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+      });
       }
     };
 
@@ -355,8 +355,8 @@ export class PlaybackEngine {
             this.setState(State.Ended);
             this.streamerNode = null;
             Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-              emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-            });
+        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+      });
           }
         };
 
@@ -468,8 +468,8 @@ export class PlaybackEngine {
         this.setState(State.Ended);
         this.sourceNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-        });
+        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+      });
       }
     };
 
