@@ -210,6 +210,7 @@ export class PlaybackEngine {
 
     // Wire onEnded before calling start() to avoid a race condition
     streamer.onEnded = () => {
+      streamer.onEnded = null;
       if (this._state === State.Playing) {
         this.setState(State.Ended);
         this.streamerNode = null;
@@ -349,6 +350,7 @@ export class PlaybackEngine {
         streamer.initialize(seekUrl);
 
         streamer.onEnded = () => {
+          streamer.onEnded = null;
           if (this._state === State.Playing) {
             this.setState(State.Ended);
             this.streamerNode = null;
@@ -460,6 +462,7 @@ export class PlaybackEngine {
      * state: only treat it as a natural end when we are still Playing.
      */
     source.onEnded = () => {
+      source.onEnded = null;
       if (this._state === State.Playing) {
         this.setState(State.Ended);
         this.sourceNode = null;
