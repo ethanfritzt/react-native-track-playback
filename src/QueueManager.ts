@@ -109,31 +109,6 @@ export class QueueManager {
     return false;
   }
 
-  skipToIndex(index: number): void {
-    if (index >= 0 && index < this.queue.length) {
-      this.currentIndex = index;
-    }
-  }
-
-  /**
-   * Shuffle the queue in-place using Fisher-Yates.
-   * The currently playing track is kept at index 0 so playback is uninterrupted.
-   */
-  shuffle(): void {
-    if (this.queue.length <= 1) return;
-
-    const current = this.currentIndex >= 0 ? this.queue[this.currentIndex] : undefined;
-    const rest = this.queue.filter((_, i) => i !== this.currentIndex);
-
-    for (let i = rest.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [rest[i], rest[j]] = [rest[j]!, rest[i]!];
-    }
-
-    this.queue = current ? [current, ...rest] : rest;
-    this.currentIndex = current ? 0 : -1;
-  }
-
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
@@ -154,11 +129,4 @@ export class QueueManager {
     return this.currentIndex;
   }
 
-  hasNext(): boolean {
-    return this.currentIndex >= 0 && this.currentIndex < this.queue.length - 1;
-  }
-
-  hasPrevious(): boolean {
-    return this.currentIndex > 0;
-  }
 }
