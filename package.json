@@ -26,7 +26,11 @@
     "prepare": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\""
   },
   "keywords": [
     "react-native",
@@ -60,7 +64,11 @@
     "@expo/config-plugins": ">=8.0.0",
     "@types/jest": "^30.0.0",
     "@types/react": "^19.1.0",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
     "jest": "^30.2.0",
+    "prettier": "^3.2.5",
     "react": "^19.2.4",
     "react-native": "^0.84.1",
     "react-native-audio-api": "^0.11.6",
