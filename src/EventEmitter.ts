@@ -22,14 +22,6 @@ export class EventEmitter {
   emit(event: string, ...args: unknown[]): void {
     this.listeners.get(event)?.forEach(h => h(...args));
   }
-
-  removeAllListeners(event?: string): void {
-    if (event) {
-      this.listeners.delete(event);
-    } else {
-      this.listeners.clear();
-    }
-  }
 }
 
 /**

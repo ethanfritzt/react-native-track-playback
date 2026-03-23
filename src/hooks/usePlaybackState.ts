@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { State, PlaybackState } from '../types';
+import { State, PlaybackState, Event } from '../types';
 import { emitter } from '../EventEmitter';
 
 /**
@@ -13,7 +13,7 @@ export function usePlaybackState(): { state: State | undefined } {
   const [state, setState] = useState<State | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = emitter.on('playback-state', (payload) => {
+    const unsub = emitter.on(Event.PlaybackState, (payload) => {
       setState((payload as PlaybackState).state);
     });
     return unsub;

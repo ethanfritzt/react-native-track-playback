@@ -265,8 +265,6 @@ export class PlaybackEngine {
       this.prefetchBuffer = null;
       this.prefetchUrl = null;
     } else {
-      // Signal that we are now fetching / decoding the audio data
-      this.setState(State.Buffering);
       buffer = await decodeAudioData(track.url);
 
       // A newer loadAndPlay() fired while we were downloading — discard the
@@ -276,9 +274,6 @@ export class PlaybackEngine {
 
     this.currentBuffer = buffer;
     this.currentTrackDuration = buffer.duration;
-
-    // Decode complete — signal ready before starting the source node
-    this.setState(State.Ready);
 
     // Resume context if previously suspended (e.g. after a pause from a previous track)
     if (this.context!.state === 'suspended') {
@@ -519,7 +514,7 @@ export class PlaybackEngine {
   private setState(state: State): void {
     if (this._state === state) return;
     this._state = state;
-    emitter.emit('playback-state', { state });
+    emitter.emit(Event.PlaybackState, { state });
   }
 
   private assertReady(): void {

@@ -71,43 +71,6 @@ describe('EventEmitter', () => {
   });
 
   // -------------------------------------------------------------------------
-  // removeAllListeners
-  // -------------------------------------------------------------------------
-
-  it('removeAllListeners(event) removes all handlers for that event', () => {
-    const h1 = jest.fn();
-    const h2 = jest.fn();
-    emitter.on('test', h1);
-    emitter.on('test', h2);
-    emitter.removeAllListeners('test');
-    emitter.emit('test');
-    expect(h1).not.toHaveBeenCalled();
-    expect(h2).not.toHaveBeenCalled();
-  });
-
-  it('removeAllListeners() with no args removes all handlers for all events', () => {
-    const hA = jest.fn();
-    const hB = jest.fn();
-    emitter.on('a', hA);
-    emitter.on('b', hB);
-    emitter.removeAllListeners();
-    emitter.emit('a');
-    emitter.emit('b');
-    expect(hA).not.toHaveBeenCalled();
-    expect(hB).not.toHaveBeenCalled();
-  });
-
-  it('removeAllListeners(event) does not affect other events', () => {
-    const hA = jest.fn();
-    const hB = jest.fn();
-    emitter.on('a', hA);
-    emitter.on('b', hB);
-    emitter.removeAllListeners('a');
-    emitter.emit('b');
-    expect(hB).toHaveBeenCalledTimes(1);
-  });
-
-  // -------------------------------------------------------------------------
   // Edge cases
   // -------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-import { Track, TrackMetadata, State, Event, Capability, PlaybackState, UpdateOptions } from './types';
+import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions } from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';

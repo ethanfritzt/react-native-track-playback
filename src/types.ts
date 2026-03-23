@@ -69,12 +69,7 @@ export interface ActiveTrackChangedEvent {
   lastIndex: number;
 }
 
-export interface SeekEvent {
-  position: number;
-}
-
 export interface UpdateOptions {
   capabilities?: Capability[];
   notificationCapabilities?: Capability[];
-  compactCapabilities?: Capability[];
 }
