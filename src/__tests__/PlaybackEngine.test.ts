@@ -46,11 +46,16 @@ function collectStates(engine: PlaybackEngine): State[] {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  jest.useFakeTimers();
   clearCreatedStreamers();
   clearCreatedSources();
   setStreamerAvailable(true);
   setNextDecodeDuration(30);
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ---------------------------------------------------------------------------
@@ -164,7 +169,6 @@ describe('loadAndPlay (streaming path)', () => {
     const first = streamers[streamers.length - 1]!;
     await engine.loadAndPlay(makeTrack(2));
     expect(first.stop).toHaveBeenCalled();
-    expect(first.onEnded).toBeNull();
   });
 
   it('sets State.Error and re-throws when initialize returns false', async () => {
@@ -177,7 +181,7 @@ describe('loadAndPlay (streaming path)', () => {
     clearCreatedStreamers();
     // Override: createStreamer returns a node whose initialize returns false
     const ctx = getLastAudioContext()!;
-    const failNode = { connect: jest.fn(), initialize: jest.fn().mockReturnValue(false), start: jest.fn(), stop: jest.fn(), onEnded: null };
+    const failNode = { connect: jest.fn(), initialize: jest.fn().mockReturnValue(false), start: jest.fn(), stop: jest.fn() };
     jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce(failNode as any);
     await expect(patchedEngine.loadAndPlay(makeTrack())).rejects.toThrow('failed to initialize');
     expect(patchedEngine.getState()).toBe(State.Error);
@@ -428,34 +432,34 @@ describe('seekTo (buffer fallback path)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Natural track end (onEnded callback)
+// Natural track end
 // ---------------------------------------------------------------------------
 
 describe('onTrackEnded callback', () => {
-  it('fires the callback when the streamer ends naturally', async () => {
+  it('fires the callback when the streamer poller detects end', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
     engine.onTrackEnded(cb);
 
-    await engine.loadAndPlay(makeTrack());
-    const streamers1 = getCreatedStreamers();
-    const streamer = streamers1[streamers1.length - 1]!;
-    streamer.simulateEnded();
+    await engine.loadAndPlay(makeTrack(1, 30));
+    const ctx = getLastAudioContext()!;
+    ctx.advanceTime(30); // position >= duration - 0.5 → triggers poller
+    jest.advanceTimersByTime(250);
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(engine.getState()).toBe(State.Ended);
   });
 
-  it('does NOT fire callback when stop() was called (state not Playing)', async () => {
+  it('does NOT fire callback when stop() was called before poller fires', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
     engine.onTrackEnded(cb);
 
-    await engine.loadAndPlay(makeTrack());
-    await engine.stop(); // state → Stopped
-    const streamers2 = getCreatedStreamers();
-    const streamer = streamers2[streamers2.length - 1]!;
-    streamer.simulateEnded();
+    await engine.loadAndPlay(makeTrack(1, 30));
+    await engine.stop(); // state → Stopped, poller cleared
+    const ctx = getLastAudioContext()!;
+    ctx.advanceTime(30);
+    jest.advanceTimersByTime(250);
 
     expect(cb).not.toHaveBeenCalled();
   });

@@ -42,19 +42,19 @@ async function setup() {
   });
 }
 
-function lastStreamer() {
-  const s = getCreatedStreamers();
-  return s[s.length - 1]!;
-}
-
 // ---------------------------------------------------------------------------
 // Reset per test
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
   clearCreatedStreamers();
   setStreamerAvailable(true);
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ---------------------------------------------------------------------------
@@ -396,16 +396,14 @@ describe('seekTo / getPosition / getProgress', () => {
 // ---------------------------------------------------------------------------
 
 describe('auto-advance on track end', () => {
-  it('loads and plays the next track when the streamer fires onEnded', async () => {
+  it('loads and plays the next track when the streamer ends naturally', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
-    const firstStreamer = lastStreamer();
     clearCreatedStreamers();
 
-    // Simulate the first track ending naturally
-    firstStreamer.simulateEnded();
-    // The onTrackEnded callback is async — flush promises
+    getLastAudioContext()!.advanceTime(31);
+    jest.advanceTimersByTime(250);
     await new Promise(r => setImmediate(r));
     await new Promise(r => setImmediate(r));
 
@@ -419,10 +417,10 @@ describe('auto-advance on track end', () => {
     await setup();
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
-    const s = lastStreamer();
     jest.clearAllMocks();
 
-    s.simulateEnded();
+    getLastAudioContext()!.advanceTime(31);
+    jest.advanceTimersByTime(250);
     await new Promise(r => setImmediate(r));
     await new Promise(r => setImmediate(r));
 
@@ -433,12 +431,12 @@ describe('auto-advance on track end', () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
-    const firstStreamer = lastStreamer();
 
     const handler = jest.fn();
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
 
-    firstStreamer.simulateEnded();
+    getLastAudioContext()!.advanceTime(31);
+    jest.advanceTimersByTime(250);
     await new Promise(r => setImmediate(r));
     await new Promise(r => setImmediate(r));
 
