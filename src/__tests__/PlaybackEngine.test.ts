@@ -30,17 +30,6 @@ function makeEngine(): PlaybackEngine {
   return engine;
 }
 
-function collectStates(engine: PlaybackEngine): State[] {
-  const states: State[] = [];
-  // Access the internal emitter via the module-level singleton
-  // by listening on the 'playback-state' event.
-  const { emitter } = jest.requireMock('../EventEmitter') as {
-    emitter: { on: (e: string, h: (...a: unknown[]) => void) => () => void };
-  };
-  // We actually import the real emitter, not a mock — use it directly.
-  return states;
-}
-
 // ---------------------------------------------------------------------------
 // Reset per test
 // ---------------------------------------------------------------------------
