@@ -98,6 +98,9 @@ export class PlaybackEngine {
    */
   private loadGeneration = 0;
 
+  /** Interval handle for the StreamerNode track-end poller. */
+  private streamerPollTimer: ReturnType<typeof setInterval> | null = null;
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -122,7 +125,11 @@ export class PlaybackEngine {
         // createStreamer() calls from succeeding if the native layer enforces
         // a single-active-streamer constraint.
         if (probe) {
-          try { probe.stop(); } catch { /* not started — safe to ignore */ }
+          try {
+            probe.stop();
+          } catch {
+            /* not started — safe to ignore */
+          }
         }
       } catch {
         this.streamingAvailable = false;
@@ -182,7 +189,7 @@ export class PlaybackEngine {
   private async loadAndPlayStreamer(
     track: Track,
     startOffset: number,
-    generation: number,
+    generation: number
   ): Promise<void> {
     const streamer = this.context!.createStreamer();
     if (!streamer) {
@@ -199,9 +206,8 @@ export class PlaybackEngine {
     // For seeking, we append a timeOffset query param to the URL (supported by
     // Subsonic's /rest/stream endpoint). For non-Subsonic URLs this is a no-op
     // on the server side but harmless as an unknown query param.
-    const streamUrl = startOffset > 0
-      ? PlaybackEngine.urlWithTimeOffset(track.url, startOffset)
-      : track.url;
+    const streamUrl =
+      startOffset > 0 ? PlaybackEngine.urlWithTimeOffset(track.url, startOffset) : track.url;
 
     const ok = streamer.initialize(streamUrl);
     if (!ok) {
@@ -211,12 +217,13 @@ export class PlaybackEngine {
     // Wire onEnded before calling start() to avoid a race condition
     streamer.onEnded = () => {
       streamer.onEnded = null;
+      this.clearStreamerEndedPoller();
       if (this._state === State.Playing) {
         this.setState(State.Ended);
         this.streamerNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-      });
+          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+        });
       }
     };
 
@@ -229,7 +236,11 @@ export class PlaybackEngine {
     // If so, our streamer has already been torn down by teardownSource() in
     // the newer call — bail out without touching state.
     if (generation !== this.loadGeneration) {
-      try { streamer.stop(); } catch { /* already stopped by teardownSource */ }
+      try {
+        streamer.stop();
+      } catch {
+        /* already stopped by teardownSource */
+      }
       return;
     }
 
@@ -246,6 +257,7 @@ export class PlaybackEngine {
     this.currentTrackDuration = track.duration ?? 0;
 
     this.setState(State.Playing);
+    this.startStreamerEndedPoller(streamer);
   }
 
   /**
@@ -255,7 +267,7 @@ export class PlaybackEngine {
   private async loadAndPlayBuffer(
     track: Track,
     startOffset: number,
-    generation: number,
+    generation: number
   ): Promise<void> {
     let buffer: AudioBuffer;
 
@@ -302,7 +314,8 @@ export class PlaybackEngine {
     // After resume, context.currentTime starts ticking again from where it left off.
     // We need: currentTime - playStartContextTime + playStartOffset = pausedPosition
     // => playStartContextTime = currentTime - (pausedPosition - playStartOffset)
-    this.playStartContextTime = this.context!.currentTime - (this.pausedPosition - this.playStartOffset);
+    this.playStartContextTime =
+      this.context!.currentTime - (this.pausedPosition - this.playStartOffset);
     this.setState(State.Playing);
   }
 
@@ -341,19 +354,21 @@ export class PlaybackEngine {
       if (streamer) {
         streamer.connect(this.gainNode!);
 
-        const seekUrl = seconds > 0
-          ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
-          : this.currentTrackUrl;
+        const seekUrl =
+          seconds > 0
+            ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
+            : this.currentTrackUrl;
         streamer.initialize(seekUrl);
 
         streamer.onEnded = () => {
           streamer.onEnded = null;
+          this.clearStreamerEndedPoller();
           if (this._state === State.Playing) {
             this.setState(State.Ended);
             this.streamerNode = null;
             Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-      });
+              emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+            });
           }
         };
 
@@ -362,6 +377,7 @@ export class PlaybackEngine {
         this.playStartContextTime = this.context!.currentTime;
         this.playStartOffset = seconds;
         this.streamerNode = streamer;
+        this.startStreamerEndedPoller(streamer);
       }
     } else {
       // Buffer path: tear down and re-attach at the new offset.
@@ -415,11 +431,7 @@ export class PlaybackEngine {
       case State.Paused:
         return this.pausedPosition;
       case State.Playing:
-        return (
-          this.context!.currentTime -
-          this.playStartContextTime +
-          this.playStartOffset
-        );
+        return this.context!.currentTime - this.playStartContextTime + this.playStartOffset;
       default:
         return 0;
     }
@@ -446,6 +458,41 @@ export class PlaybackEngine {
   // ---------------------------------------------------------------------------
 
   /**
+   * Starts a 250ms interval that triggers track-ended logic when the playback
+   * position reaches the track duration. This is the primary end-detection
+   * mechanism for StreamerNode, whose native implementation does not fire the
+   * 'ended' event through the AudioScheduledSourceNode subscription mechanism.
+   */
+  private startStreamerEndedPoller(streamer: StreamerNode): void {
+    this.clearStreamerEndedPoller();
+    if (this.currentTrackDuration <= 0) return; // unknown duration, cannot poll
+
+    this.streamerPollTimer = setInterval(() => {
+      if (this._state !== State.Playing || this.streamerNode !== streamer) {
+        this.clearStreamerEndedPoller();
+        return;
+      }
+      const epsilon = 0.5;
+      if (this.getPosition() >= this.currentTrackDuration - epsilon) {
+        this.clearStreamerEndedPoller();
+        streamer.onEnded = null; // deregister in case native fires late
+        this.setState(State.Ended);
+        this.streamerNode = null;
+        Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
+          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+        });
+      }
+    }, 250);
+  }
+
+  private clearStreamerEndedPoller(): void {
+    if (this.streamerPollTimer !== null) {
+      clearInterval(this.streamerPollTimer);
+      this.streamerPollTimer = null;
+    }
+  }
+
+  /**
    * Creates a new AudioBufferSourceNode, connects it to the gain node, and
    * starts playback at the given offset. Buffer path only.
    */
@@ -466,8 +513,8 @@ export class PlaybackEngine {
         this.setState(State.Ended);
         this.sourceNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-        emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-      });
+          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+        });
       }
     };
 
@@ -483,6 +530,7 @@ export class PlaybackEngine {
    * nulls the refs, and clears onEnded handlers so they don't fire spuriously.
    */
   private teardownSource(): void {
+    this.clearStreamerEndedPoller();
     if (this.streamerNode) {
       this.streamerNode.onEnded = null;
       try {
@@ -519,9 +567,7 @@ export class PlaybackEngine {
 
   private assertReady(): void {
     if (!this.context || !this.gainNode) {
-      throw new Error(
-        'PlaybackEngine: not initialized. Call TrackPlayer.setupPlayer() first.'
-      );
+      throw new Error('PlaybackEngine: not initialized. Call TrackPlayer.setupPlayer() first.');
     }
   }
 
