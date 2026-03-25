@@ -46,11 +46,16 @@ function collectStates(engine: PlaybackEngine): State[] {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  jest.useFakeTimers();
   clearCreatedStreamers();
   clearCreatedSources();
   setStreamerAvailable(true);
   setNextDecodeDuration(30);
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ---------------------------------------------------------------------------
