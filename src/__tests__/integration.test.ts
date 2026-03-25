@@ -14,7 +14,6 @@
  * Relates to issue #7.
  *
  * Known bugs proved by this suite (expected to FAIL on unfixed codebase):
- *   Bug #8  — onEnded fires twice: kills the next track
  *   Bug #9  — loadAndPlay rejection in auto-advance silently swallowed
  *   Bug #10 — seekTo with null createStreamer leaves engine in broken state
  *   Bug #11 — End-of-queue: no PlaybackActiveTrackChanged(null), no Stopped
@@ -53,10 +52,13 @@ async function setup() {
   await TrackPlayer.updateOptions({ capabilities: [] });
 }
 
-/** Returns the most recently created StreamerNode. Use for streaming-path tests only. */
-function lastStreamer() {
-  const s = getCreatedStreamers();
-  return s[s.length - 1]!;
+/**
+ * Triggers the streamer poller for a track of the given duration by advancing
+ * the mock audio context time past the end and ticking the 250ms interval.
+ */
+function triggerStreamerEnd(duration = 60): void {
+  getLastAudioContext()!.advanceTime(duration + 1);
+  jest.advanceTimersByTime(250);
 }
 
 /** Returns the most recently created AudioBufferSourceNode. Use for buffer-path tests only. */
@@ -77,11 +79,16 @@ async function flushAsync(rounds = 3): Promise<void> {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
   clearCreatedStreamers();
   clearCreatedSources();
   setStreamerAvailable(true);
   setNextDecodeDuration(60);
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ===========================================================================
@@ -121,7 +128,7 @@ describe('Scenario 1: full single-track lifecycle (streaming path)', () => {
     getLastAudioContext()!.advanceTime(10);
     expect(await TrackPlayer.getPosition()).toBeCloseTo(55, 3);
 
-    lastStreamer().simulateEnded();
+    triggerStreamerEnd(120);
     await flushAsync();
 
     expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
@@ -139,27 +146,22 @@ describe('Scenario 2: full multi-track auto-advance (streaming path)', () => {
     await TrackPlayer.setQueue([track(1), track(2), track(3)]);
     await TrackPlayer.play();
 
-    const streamer1 = lastStreamer();
-    clearCreatedStreamers();
-    streamer1.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     let active = await TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
     expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
 
-    const streamer2 = lastStreamer();
-    clearCreatedStreamers();
-    streamer2.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     active = await TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 3');
     expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
 
-    const streamer3 = lastStreamer();
     jest.clearAllMocks();
-    streamer3.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     expect(PlaybackNotificationManager.hide).toHaveBeenCalledTimes(1);
@@ -176,12 +178,10 @@ describe('Scenario 2: full multi-track auto-advance (streaming path)', () => {
       changes.push({ index: e.index, lastIndex: e.lastIndex });
     });
 
-    const s1 = lastStreamer();
-    s1.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
-    const s2 = lastStreamer();
-    s2.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     expect(changes[0]).toMatchObject({ index: 1, lastIndex: 0 });
@@ -343,19 +343,16 @@ describe('Scenario 5: notification lifecycle across a full session', () => {
       expect.objectContaining({ title: 'Track 1' }),
     );
 
-    const s1 = lastStreamer();
     jest.clearAllMocks();
-    s1.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Track 2' }),
     );
 
-    await flushAsync();
-    const s2 = lastStreamer();
     jest.clearAllMocks();
-    s2.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     expect(PlaybackNotificationManager.hide).toHaveBeenCalledTimes(1);
@@ -498,67 +495,6 @@ describe('Scenario 8: event listener cleanup', () => {
 });
 
 // ===========================================================================
-// Bug #8 — onEnded double-fire  [EXPECTED TO FAIL on unfixed code]
-// ===========================================================================
-
-describe('Bug #8: onEnded double-fire', () => {
-  /**
-   * The native layer fires onEnded TWICE per natural completion on some
-   * platforms. The second fire should be a no-op, but on unfixed code it
-   * triggers a second auto-advance, killing whatever track is now playing.
-   *
-   * Fix: clear (null-out) the streamer's onEnded handler immediately after
-   * the first fire so subsequent fires are ignored.
-   */
-
-  // BUG #8 — EXPECTED TO FAIL on unfixed code
-  it('[BUG #8] second onEnded fire on the SAME streamer is a no-op', async () => {
-    await setup();
-
-    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
-    await TrackPlayer.play();
-
-    const streamer1 = lastStreamer();
-    clearCreatedStreamers();
-
-    streamer1.simulateEnded(); // first fire — legitimate end of Track 1
-    await flushAsync();
-
-    expect((await TrackPlayer.getActiveTrack())?.title).toBe('Track 2');
-    expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
-
-    // BUG #8: second spurious fire kills Track 2 and advances to Track 3
-    streamer1.simulateEnded();
-    await flushAsync();
-
-    expect((await TrackPlayer.getActiveTrack())?.title).toBe('Track 2');
-    expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
-  });
-
-  // BUG #8 — EXPECTED TO FAIL on unfixed code
-  it('[BUG #8] rapid double-fire causes exactly ONE auto-advance, not two', async () => {
-    await setup();
-
-    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
-    await TrackPlayer.play();
-
-    const advancedTo: number[] = [];
-    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e: any) => {
-      if (e.index > 0) advancedTo.push(e.index);
-    });
-
-    const streamer1 = lastStreamer();
-    streamer1.simulateEnded();
-    streamer1.simulateEnded(); // rapid double-fire
-    await flushAsync();
-
-    // BUG #8: on unfixed code advancedTo === [1, 2]
-    expect(advancedTo).toHaveLength(1);
-    expect(advancedTo[0]).toBe(1);
-  });
-});
-
-// ===========================================================================
 // Bug #9 — Silent error swallow on auto-advance  [EXPECTED TO FAIL on unfixed code]
 // ===========================================================================
 
@@ -589,11 +525,9 @@ describe('Bug #9: silent error swallow on auto-advance', () => {
       initialize: jest.fn().mockReturnValue(false),
       start: jest.fn(),
       stop: jest.fn(),
-      onEnded: null,
     } as any);
 
-    const streamer1 = lastStreamer();
-    streamer1.simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     // BUG #9: on unfixed code errors.length === 0
@@ -642,11 +576,10 @@ describe('Bug #10: seekTo with null createStreamer', () => {
     await TrackPlayer.setQueue([track(1, 120), track(2)]);
     await TrackPlayer.play();
 
-    const seekStreamer = lastStreamer();
     clearCreatedStreamers();
     await TrackPlayer.seekTo(60);
 
-    seekStreamer.simulateEnded();
+    triggerStreamerEnd(60);
     await flushAsync();
 
     expect(await TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
@@ -667,8 +600,8 @@ describe('Bug #11: end-of-queue cleanup', () => {
    * Neither currently happens. The UI gets stuck showing the last track as
    * active, and the state stays at State.Ended (not a documented public state).
    *
-   * Fix: in the onEnded handler, after detecting queue exhaustion, emit
-   * PlaybackActiveTrackChanged({ track: null, index: -1 }) and call stop().
+   * Fix: in the poller's end-of-track handler, after detecting queue exhaustion,
+   * emit PlaybackActiveTrackChanged({ track: null, index: -1 }) and call stop().
    */
 
   // BUG #11 — EXPECTED TO FAIL on unfixed code
@@ -683,7 +616,7 @@ describe('Bug #11: end-of-queue cleanup', () => {
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
 
-    lastStreamer().simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     // BUG #11: on unfixed code receivedNullTrackEvent === false
@@ -697,7 +630,7 @@ describe('Bug #11: end-of-queue cleanup', () => {
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
 
-    lastStreamer().simulateEnded();
+    triggerStreamerEnd();
     await flushAsync();
 
     const { state } = await TrackPlayer.getPlaybackState();

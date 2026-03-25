@@ -214,19 +214,6 @@ export class PlaybackEngine {
       throw new Error(`StreamerNode: failed to initialize stream for URL: ${streamUrl}`);
     }
 
-    // Wire onEnded before calling start() to avoid a race condition
-    streamer.onEnded = () => {
-      streamer.onEnded = null;
-      this.clearStreamerEndedPoller();
-      if (this._state === State.Playing) {
-        this.setState(State.Ended);
-        this.streamerNode = null;
-        Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-        });
-      }
-    };
-
     // Resume context if previously suspended (e.g. after a pause from a previous track)
     if (this.context!.state === 'suspended') {
       await this.context!.resume();
@@ -360,18 +347,6 @@ export class PlaybackEngine {
             : this.currentTrackUrl;
         streamer.initialize(seekUrl);
 
-        streamer.onEnded = () => {
-          streamer.onEnded = null;
-          this.clearStreamerEndedPoller();
-          if (this._state === State.Playing) {
-            this.setState(State.Ended);
-            this.streamerNode = null;
-            Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-              emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
-            });
-          }
-        };
-
         streamer.start(0);
 
         this.playStartContextTime = this.context!.currentTime;
@@ -475,7 +450,6 @@ export class PlaybackEngine {
       const epsilon = 0.5;
       if (this.getPosition() >= this.currentTrackDuration - epsilon) {
         this.clearStreamerEndedPoller();
-        streamer.onEnded = null; // deregister in case native fires late
         this.setState(State.Ended);
         this.streamerNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
@@ -526,13 +500,12 @@ export class PlaybackEngine {
   }
 
   /**
-   * Stops and disconnects any active source node (streamer or buffer source),
-   * nulls the refs, and clears onEnded handlers so they don't fire spuriously.
+   * Stops and disconnects any active source node (streamer or buffer source)
+   * and nulls the refs.
    */
   private teardownSource(): void {
     this.clearStreamerEndedPoller();
     if (this.streamerNode) {
-      this.streamerNode.onEnded = null;
       try {
         this.streamerNode.stop();
       } catch {

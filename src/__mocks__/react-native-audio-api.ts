@@ -103,12 +103,6 @@ export class MockStreamerNode {
   initialize = jest.fn().mockReturnValue(true);
   start = jest.fn();
   stop = jest.fn();
-  onEnded: ((...args: unknown[]) => void) | null = null;
-
-  /** Simulate natural track end. */
-  simulateEnded(): void {
-    this.onEnded?.();
-  }
 }
 
 // Re-export alias
