@@ -6,7 +6,7 @@ export interface Track {
   genre?: string;
   artwork?: string;
   duration?: number;
-  // Open-ended: allow any extra fields callers pass through (matches RNTP behaviour)
+  // Open-ended: allow any extra fields callers pass through
   [key: string]: unknown;
 }
 
@@ -14,7 +14,6 @@ export interface Track {
  * Patchable metadata fields on a Track — everything except `url`.
  * Used by updateMetadataForTrack() and updateNowPlayingMetadata() to update
  * track info after the track has already been queued (e.g. artwork arriving late).
- * Mirrors RNTP's TrackMetadataBase type.
  */
 export type TrackMetadata = Omit<Track, 'url'>;
 
@@ -71,5 +70,4 @@ export interface ActiveTrackChangedEvent {
 
 export interface UpdateOptions {
   capabilities?: Capability[];
-  notificationCapabilities?: Capability[];
 }
