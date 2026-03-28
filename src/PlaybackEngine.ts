@@ -149,6 +149,8 @@ export class PlaybackEngine {
     await this.context?.close();
     this.context = null;
     this.gainNode = null;
+    // Reset so the next init() re-probes streaming availability on the new context
+    this.streamingAvailable = undefined;
     this.setState(State.None);
   }
 
