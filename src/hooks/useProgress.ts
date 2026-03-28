@@ -3,8 +3,6 @@ import { Progress, State, Event, ActiveTrackChangedEvent } from '../types';
 import { emitter } from '../EventEmitter';
 
 /**
- * Drop-in replacement for RNTP's useProgress(updateInterval?).
- *
  * Polls position/duration from the engine on an interval.
  * Returns { position, duration, buffered } — all in seconds.
  *

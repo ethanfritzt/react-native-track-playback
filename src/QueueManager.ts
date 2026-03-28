@@ -29,7 +29,6 @@ export class QueueManager {
   /**
    * Remove tracks by index or Track object (single or array).
    * When Track objects are passed, they are resolved to indices by URL.
-   * Mirrors the RNTP remove() signature.
    * Adjusts currentIndex after removal — if the current track was removed,
    * clamps to the new last index.
    */
