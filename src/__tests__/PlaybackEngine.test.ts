@@ -524,3 +524,138 @@ describe('destroy', () => {
     expect(engine.getPosition()).toBe(0);
   });
 });
+
+
+
+// ---------------------------------------------------------------------------
+// Edge case: seekTo out-of-bounds
+// ---------------------------------------------------------------------------
+
+describe('seekTo — out-of-bounds values', () => {
+  it('seekTo(-1) does not throw and does not produce negative position', async () => {
+    const engine = makeEngine();
+    await engine.loadAndPlay(makeTrack());
+    await expect(engine.seekTo(-1)).resolves.toBeUndefined();
+    expect(engine.getPosition()).toBeGreaterThanOrEqual(0);
+  });
+
+  it('seekTo(duration + 100) does not throw or corrupt state', async () => {
+    const engine = makeEngine();
+    await engine.loadAndPlay(makeTrack(1, 30));
+    await expect(engine.seekTo(130)).resolves.toBeUndefined();
+    // State should still be one of the valid states
+    expect([State.Playing, State.Paused, State.Error, State.Ended]).toContain(engine.getState());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge case: invalid state transitions
+// ---------------------------------------------------------------------------
+
+describe('invalid state transitions', () => {
+  it('seekTo while State.None is a no-op', async () => {
+    const engine = makeEngine();
+    await expect(engine.seekTo(10)).resolves.toBeUndefined();
+    expect(engine.getState()).toBe(State.None);
+  });
+
+  it('pause while State.None is a no-op', async () => {
+    const engine = makeEngine();
+    await engine.pause();
+    expect(engine.getState()).toBe(State.None);
+  });
+
+  it('resume while State.None is a no-op', async () => {
+    const engine = makeEngine();
+    await engine.resume();
+    expect(engine.getState()).toBe(State.None);
+  });
+
+  it('loadAndPlay succeeds after a previous State.Error', async () => {
+    const engine = makeEngine();
+    // Force an error
+    const ctx = getLastAudioContext()!;
+    jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce({
+      connect: jest.fn(),
+      initialize: jest.fn().mockReturnValue(false),
+      start: jest.fn(),
+      stop: jest.fn(),
+    } as any);
+    try { await engine.loadAndPlay(makeTrack()); } catch { /* expected */ }
+    expect(engine.getState()).toBe(State.Error);
+
+    // Recovery: next load should succeed normally
+    await engine.loadAndPlay(makeTrack(2));
+    expect(engine.getState()).toBe(State.Playing);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge case: skipToPrevious position threshold
+// ---------------------------------------------------------------------------
+
+describe('position at exact 3-second threshold', () => {
+  it('engine reports position of exactly 3s without crashing', async () => {
+    const engine = makeEngine();
+    await engine.loadAndPlay(makeTrack());
+    const ctx = getLastAudioContext()!;
+    ctx.advanceTime(3);
+    // Engine position reporting should be stable at this boundary value
+    expect(engine.getPosition()).toBeCloseTo(3, 3);
+    expect(engine.getState()).toBe(State.Playing);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge case: onTrackEnded registered after loadAndPlay
+// ---------------------------------------------------------------------------
+
+describe('onTrackEnded — late registration', () => {
+  it('callback registered after loadAndPlay still fires on natural end', async () => {
+    const engine = makeEngine();
+    await engine.loadAndPlay(makeTrack(1, 30));
+
+    const cb = jest.fn();
+    engine.onTrackEnded(cb); // registered after playback started
+
+    const ctx = getLastAudioContext()!;
+    ctx.advanceTime(30);
+    jest.advanceTimersByTime(250);
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(engine.getState()).toBe(State.Ended);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge case: error recovery — state.Error transitions
+// ---------------------------------------------------------------------------
+
+describe('error recovery — State.Error', () => {
+  it('transitions to State.Error when streamer initialize returns false', async () => {
+    const engine = makeEngine();
+    const ctx = getLastAudioContext()!;
+    jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce({
+      connect: jest.fn(),
+      initialize: jest.fn().mockReturnValue(false),
+      start: jest.fn(),
+      stop: jest.fn(),
+    } as any);
+    await expect(engine.loadAndPlay(makeTrack())).rejects.toThrow();
+    expect(engine.getState()).toBe(State.Error);
+  });
+
+  it('position returns 0 when in State.Error', async () => {
+    const engine = makeEngine();
+    const ctx = getLastAudioContext()!;
+    jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce({
+      connect: jest.fn(),
+      initialize: jest.fn().mockReturnValue(false),
+      start: jest.fn(),
+      stop: jest.fn(),
+    } as any);
+    try { await engine.loadAndPlay(makeTrack()); } catch { /* expected */ }
+    expect(engine.getPosition()).toBe(0);
+  });
+});
+
