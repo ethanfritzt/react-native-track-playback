@@ -27,7 +27,15 @@ engine.onTrackEnded(async () => {
     // Audio-start is the critical path — await it alone so the user hears
     // audio as soon as possible. Notification update is metadata-only and
     // does not affect playback correctness, so fire it without blocking.
-    await engine.loadAndPlay(next);
+    try {
+      await engine.loadAndPlay(next);
+    } catch (err: unknown) {
+      emitter.emit(Event.PlaybackError, {
+        message: err instanceof Error ? err.message : String(err),
+        code: -1,
+      });
+      return;
+    }
     bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {

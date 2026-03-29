@@ -88,7 +88,8 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await TrackPlayer.destroy();
   jest.useRealTimers();
 });
 
