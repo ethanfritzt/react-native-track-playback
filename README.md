@@ -1,10 +1,10 @@
 # react-native-track-playback
 
-A drop-in replacement for [react-native-track-player](https://github.com/doublesymmetry/react-native-track-player) built on top of [react-native-audio-api](https://github.com/software-mansion/react-native-audio-api).
+A React Native audio playback library built on [react-native-audio-api](https://github.com/software-mansion/react-native-audio-api).
 
 ## Overview
 
-This library provides the same API surface as `react-native-track-player`, allowing you to migrate seamlessly while leveraging the modern `react-native-audio-api` for audio playback.
+This library provides queue-based audio playback with lock screen and notification controls, leveraging `react-native-audio-api` for audio output.
 
 **Key Features:**
 
@@ -185,34 +185,6 @@ enum State {
   Error = 'error',
 }
 ```
-
-## Migration from react-native-track-player
-
-This library is designed as a drop-in replacement. In most cases, you only need to change the import:
-
-```diff
-- import TrackPlayer, { State, Event } from 'react-native-track-player';
-+ import TrackPlayer, { State, Event } from 'react-native-track-playback';
-```
-
-### Key Differences
-
-1. **No `setupPlayer()` call required** - The player initializes automatically on first use.
-
-2. **`registerPlaybackService()` is a no-op** - Included for compatibility but does nothing. Remote events are handled automatically.
-
-3. **Capabilities** - The `Capability` enum is exported for compatibility, but capabilities are enabled by default and don't need to be configured.
-
-4. **Track properties** - The core properties (`id`, `url`, `title`, `artist`, `artwork`, `duration`) are supported. Some advanced properties from RNTP may not be available.
-
-### Migration Checklist
-
-- [ ] Update imports from `react-native-track-player` to `react-native-track-playback`
-- [ ] Remove `setupPlayer()` calls (or keep them - they're no-ops for compatibility)
-- [ ] Remove `registerPlaybackService()` wrapper (or keep it - it's a no-op)
-- [ ] Remove capability configuration (or keep it - it's ignored)
-- [ ] Update Expo config plugin if applicable
-- [ ] Test playback, queue management, and lock screen controls
 
 ## Contributing
 

@@ -4,7 +4,7 @@ import { emitter } from './EventEmitter';
 
 /**
  * Maps react-native-audio-api's PlaybackNotificationManager events to the
- * RNTP-style Event.* callbacks that consumers register via addEventListener().
+ * Event.* callbacks that consumers register via addEventListener().
  *
  * Also handles updating the lock screen / notification metadata whenever
  * the active track or playback state changes.
@@ -63,7 +63,7 @@ export class NotificationBridge {
       })
     );
 
-    // Wire RNAP notification events → package EventEmitter (RNTP Event.* shape)
+    // Wire RNAP notification events → package EventEmitter
     this.subscriptions = [
       PlaybackNotificationManager.addEventListener(
         'playbackNotificationPlay',

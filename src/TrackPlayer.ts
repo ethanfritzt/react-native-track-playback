@@ -7,7 +7,6 @@ import { _registerProgressGetters } from './hooks/useProgress';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
-// All state lives here so TrackPlayer can be used as a static API (matching RNTP).
 // ---------------------------------------------------------------------------
 
 const queue = new QueueManager();
@@ -76,8 +75,7 @@ const TrackPlayer = {
 
   /**
    * Initialize the audio engine and register progress getters for useProgress().
-   * Must be called before any other TrackPlayer method — equivalent to RNTP's
-   * setupPlayer().
+   * Must be called before any other TrackPlayer method.
    */
   async setupPlayer(): Promise<void> {
     engine.init();
@@ -108,10 +106,9 @@ const TrackPlayer = {
 
   /**
    * Configure playback capabilities (controls shown in the system notification).
-   * Equivalent to RNTP's updateOptions().
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    const caps = options.capabilities ?? options.notificationCapabilities ?? [];
+    const caps = options.capabilities ?? [];
     await bridge.setup(caps);
   },
 
@@ -121,7 +118,7 @@ const TrackPlayer = {
 
   /**
    * Register a listener for a TrackPlayer event.
-   * Returns a subscription object with a `.remove()` method — identical to RNTP.
+   * Returns a subscription object with a `.remove()` method.
    */
   addEventListener(
     event: Event,
@@ -136,16 +133,13 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   /**
-   * Replace the current queue without starting playback — matches RNTP semantics
-   * exactly. The caller must explicitly invoke play() to begin audio.
+   * Replace the current queue without starting playback. The caller must
+   * explicitly invoke play() to begin audio.
    *
    * Always stops the engine before replacing the queue. This handles all states:
    * - Playing / Paused: tears down the active source node
    * - Loading / Buffering: increments loadGeneration to cancel the in-flight load
    * - Stopped / Ended / None: no-op on audio state, just resets cleanly
-   *
-   * We deliberately do NOT call loadAndPlay() here so that setQueue() followed
-   * by play() behaves identically to RNTP — i.e. the app controls when audio starts.
    */
   async setQueue(tracks: Track[]): Promise<void> {
     await engine.stop();
@@ -159,8 +153,7 @@ const TrackPlayer = {
 
   /**
    * Remove tracks by index or Track object (single or array).
-   * Matches RNTP's remove() signature — also accepts Track objects for
-   * convenience (resolved to indices by URL).
+   * Also accepts Track objects for convenience (resolved to indices by URL).
    */
   async remove(indexOrIndices: number | number[] | Track | Track[]): Promise<void> {
     queue.remove(indexOrIndices);
@@ -188,7 +181,6 @@ const TrackPlayer = {
    * and lock screen are updated immediately.
    *
    * `url` cannot be changed here — use setQueue() or add() for that.
-   * Mirrors RNTP's updateMetadataForTrack().
    */
   async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
     const updated = queue.updateTrack(index, metadata);
@@ -208,7 +200,6 @@ const TrackPlayer = {
    *
    * Use this for ephemeral display updates (e.g. artwork arriving late, live
    * stream title changes) without permanently altering the queued track data.
-   * Mirrors RNTP's updateNowPlayingMetadata().
    */
   async updateNowPlayingMetadata(metadata: TrackMetadata): Promise<void> {
     const track = queue.getActiveTrack();
@@ -329,7 +320,7 @@ const TrackPlayer = {
 
   /**
    * If more than 3 seconds into the current track, seek back to the start.
-   * Otherwise, go to the previous track. Matches RNTP's skipToPrevious() behaviour.
+   * Otherwise, go to the previous track.
    */
   async skipToPrevious(): Promise<void> {
     const position = engine.getPosition();
@@ -379,17 +370,10 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
-  /**
-   * Modern RNTP API — returns { state: State }.
-   */
   async getPlaybackState(): Promise<PlaybackState> {
     return { state: engine.getState() };
   },
 
-  /**
-   * Legacy RNTP API — returns State directly.
-   * Kept for full drop-in compatibility.
-   */
   async getState(): Promise<State> {
     return engine.getState();
   },
@@ -413,20 +397,3 @@ const TrackPlayer = {
 };
 
 export default TrackPlayer;
-
-// ---------------------------------------------------------------------------
-// registerPlaybackService — no-op for drop-in compatibility
-// ---------------------------------------------------------------------------
-
-/**
- * In RNTP, this registers a background service function that handles remote
- * events. In react-native-track-playback, remote events are handled directly
- * via PlaybackNotificationManager, so no background service is needed.
- *
- * This function exists purely so that callers don't have to remove it during
- * migration. The passed factory is never invoked.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function registerPlaybackService(_factory: () => Promise<void>): void {
-  // intentional no-op
-}

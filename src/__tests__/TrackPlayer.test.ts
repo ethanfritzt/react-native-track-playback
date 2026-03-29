@@ -115,7 +115,7 @@ describe('setQueue', () => {
     expect(active?.url).toBe('http://example.com/track1.mp3');
   });
 
-  it('does NOT emit PlaybackActiveTrackChanged (matches RNTP behaviour)', async () => {
+  it('does NOT emit PlaybackActiveTrackChanged', async () => {
     await setup();
     const handler = jest.fn();
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
