@@ -149,6 +149,7 @@ export class PlaybackEngine {
     await this.context?.close();
     this.context = null;
     this.gainNode = null;
+    this.streamingAvailable = undefined;
     this.setState(State.None);
   }
 
@@ -304,6 +305,9 @@ export class PlaybackEngine {
     this.playStartContextTime =
       this.context!.currentTime - (this.pausedPosition - this.playStartOffset);
     this.setState(State.Playing);
+    if (this.streamerNode) {
+      this.startStreamerEndedPoller(this.streamerNode);
+    }
   }
 
   async stop(): Promise<void> {

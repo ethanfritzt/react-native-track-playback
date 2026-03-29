@@ -78,8 +78,9 @@ async function flushAsync(rounds = 3): Promise<void> {
 // Reset per test
 // ---------------------------------------------------------------------------
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+  await TrackPlayer.destroy();
   clearCreatedStreamers();
   clearCreatedSources();
   setStreamerAvailable(true);
