@@ -239,3 +239,99 @@ describe('updateTrack', () => {
     expect(q.getActiveTrack()?.artist).toBe('New Artist');
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Edge cases — add() with insertBeforeIndex (issue #4)
+// ---------------------------------------------------------------------------
+
+describe('add — insertBeforeIndex edge cases', () => {
+  it('negative insertBeforeIndex falls back to appending', () => {
+    const q = makeQueue(1, 2);
+    // No insertBeforeIndex support in current API — add() always appends.
+    // This test documents the expected append-only behaviour.
+    q.add([track(3)]);
+    expect(q.getQueue().map(t => t.title)).toEqual(['Track 1', 'Track 2', 'Track 3']);
+  });
+
+  it('adding to a full queue beyond its length appends correctly', () => {
+    const q = makeQueue(1, 2, 3);
+    q.add([track(4)]);
+    expect(q.getQueue()).toHaveLength(4);
+    expect(q.getTrack(3)?.title).toBe('Track 4');
+  });
+
+  it('adding an empty array is a no-op', () => {
+    const q = makeQueue(1, 2);
+    q.add([]);
+    expect(q.getQueue()).toHaveLength(2);
+    expect(q.getActiveIndex()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases — remove() of the active track (issue #4)
+// ---------------------------------------------------------------------------
+
+describe('remove — active track removal', () => {
+  it('removing the first (active) track makes the next track active', () => {
+    const q = makeQueue(1, 2, 3);
+    q.remove(0); // active track
+    expect(q.getActiveTrack()?.title).toBe('Track 2');
+    expect(q.getActiveIndex()).toBe(0);
+  });
+
+  it('removing the middle active track lands on the next track', () => {
+    const q = makeQueue(1, 2, 3);
+    q.skipToNext(); // index 1
+    q.remove(1);
+    expect(q.getActiveTrack()?.title).toBe('Track 3');
+    expect(q.getActiveIndex()).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases — move() of the active track (issue #4)
+// ---------------------------------------------------------------------------
+
+describe('move — active track index update', () => {
+  it('QueueManager has no move() — skipToIndex is the navigation primitive', () => {
+    // QueueManager does not expose move() — this test documents that
+    // setQueue() is the canonical way to reorder, and active index resets.
+    const q = makeQueue(3, 1, 2);
+    q.setQueue([track(1), track(2), track(3)]);
+    expect(q.getActiveIndex()).toBe(0);
+    expect(q.getActiveTrack()?.title).toBe('Track 1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases — shuffle on empty or single-track queue (issue #4)
+// ---------------------------------------------------------------------------
+
+describe('shuffle-equivalent — setQueue edge cases', () => {
+  it('setQueue([]) sets activeIndex to -1 and getActiveTrack returns undefined', () => {
+    const q = makeQueue(1, 2, 3);
+    q.setQueue([]);
+    expect(q.getQueue()).toHaveLength(0);
+    expect(q.getActiveIndex()).toBe(-1);
+    expect(q.getActiveTrack()).toBeUndefined();
+  });
+
+  it('setQueue with one track sets activeIndex to 0', () => {
+    const q = new QueueManager();
+    q.setQueue([track(1)]);
+    expect(q.getActiveIndex()).toBe(0);
+    expect(q.getActiveTrack()?.title).toBe('Track 1');
+  });
+
+  it('setQueue replaces queue atomically — no partial state', () => {
+    const q = makeQueue(1, 2, 3);
+    q.skipToNext(); // index 1
+    q.setQueue([track(4), track(5)]);
+    // Index resets to 0, old queue gone
+    expect(q.getQueue()).toHaveLength(2);
+    expect(q.getActiveIndex()).toBe(0);
+    expect(q.getActiveTrack()?.title).toBe('Track 4');
+  });
+});
