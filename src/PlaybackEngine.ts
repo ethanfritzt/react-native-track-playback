@@ -342,22 +342,26 @@ export class PlaybackEngine {
       this.teardownSource();
 
       const streamer = this.context!.createStreamer();
-      if (streamer) {
-        streamer.connect(this.gainNode!);
-
-        const seekUrl =
-          seconds > 0
-            ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
-            : this.currentTrackUrl;
-        streamer.initialize(seekUrl);
-
-        streamer.start(0);
-
-        this.playStartContextTime = this.context!.currentTime;
-        this.playStartOffset = seconds;
-        this.streamerNode = streamer;
-        this.startStreamerEndedPoller(streamer);
+      if (!streamer) {
+        this.streamingAvailable = false;
+        this.setState(State.Error);
+        return;
       }
+
+      streamer.connect(this.gainNode!);
+
+      const seekUrl =
+        seconds > 0
+          ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
+          : this.currentTrackUrl;
+      streamer.initialize(seekUrl);
+
+      streamer.start(0);
+
+      this.playStartContextTime = this.context!.currentTime;
+      this.playStartOffset = seconds;
+      this.streamerNode = streamer;
+      this.startStreamerEndedPoller(streamer);
     } else {
       // Buffer path: tear down and re-attach at the new offset.
       this.teardownSource();
