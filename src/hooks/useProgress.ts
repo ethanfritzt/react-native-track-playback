@@ -66,7 +66,6 @@ export function useProgress(updateInterval = 1000): Progress {
       const duration = _getDuration();
       setProgress({ position, duration, buffered: duration });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Track the playback-state event to keep isActiveRef in sync with ongoing
@@ -126,3 +125,4 @@ export function useProgress(updateInterval = 1000): Progress {
 
   return progress;
 }
+
