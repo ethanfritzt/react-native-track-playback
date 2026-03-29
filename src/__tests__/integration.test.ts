@@ -78,8 +78,9 @@ async function flushAsync(rounds = 3): Promise<void> {
 // Reset per test
 // ---------------------------------------------------------------------------
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+  await TrackPlayer.destroy();
   clearCreatedStreamers();
   clearCreatedSources();
   setStreamerAvailable(true);
@@ -638,5 +639,58 @@ describe('Bug #11: end-of-queue cleanup', () => {
 
     // BUG #11: on unfixed code state === State.Ended
     expect(state).toBe(State.Stopped);
+  });
+});
+
+// ===========================================================================
+// Bug #12 — Pause/resume breaks auto-advance  [EXPECTED TO FAIL on unfixed code]
+// ===========================================================================
+
+describe('Bug #12: pause/resume breaks auto-advance', () => {
+  /**
+   * After pause() → resume(), the StreamerNode ended-poller has been cleared
+   * and is never restarted. The onEnded callback never fires, so the queue
+   * never advances to the next track.
+   *
+   * Fix: in resume(), restart the poller if this.streamerNode is non-null.
+   */
+
+  // BUG #12 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #12] auto-advances after pause/resume cycle', async () => {
+    await setup();
+
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+
+    await TrackPlayer.pause();
+    expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Paused });
+
+    await TrackPlayer.play(); // resume
+
+    triggerStreamerEnd();
+    await flushAsync();
+
+    // BUG #12: on unfixed code getActiveTrack() still returns Track 1
+    expect(await TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
+    expect(await TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
+  });
+
+  // BUG #12 — EXPECTED TO FAIL on unfixed code
+  it('[BUG #12] multiple pause/resume cycles still auto-advance', async () => {
+    await setup();
+
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+
+    // pause and resume twice before the track ends
+    await TrackPlayer.pause();
+    await TrackPlayer.play();
+    await TrackPlayer.pause();
+    await TrackPlayer.play();
+
+    triggerStreamerEnd();
+    await flushAsync();
+
+    expect(await TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
   });
 });
