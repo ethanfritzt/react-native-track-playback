@@ -432,7 +432,7 @@ describe('onTrackEnded callback', () => {
 
     await engine.loadAndPlay(makeTrack(1, 30));
     const ctx = getLastAudioContext()!;
-    ctx.advanceTime(30); // position >= duration - 0.5 → triggers poller
+    ctx.advanceTime(30); // position >= duration - 0.1 → triggers poller
     jest.advanceTimersByTime(250);
 
     expect(cb).toHaveBeenCalledTimes(1);
