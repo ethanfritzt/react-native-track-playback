@@ -1,4 +1,5 @@
 export interface Track {
+  id?: string;
   url: string;
   title?: string;
   artist?: string;
@@ -6,8 +7,6 @@ export interface Track {
   genre?: string;
   artwork?: string;
   duration?: number;
-  // Open-ended: allow any extra fields callers pass through
-  [key: string]: unknown;
 }
 
 /**
