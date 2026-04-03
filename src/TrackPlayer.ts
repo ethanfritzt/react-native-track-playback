@@ -371,20 +371,16 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
+  /**
+   * Returns the current playback state along with position and duration.
+   * One call gets everything needed to render a player UI.
+   */
   async getPlaybackState(): Promise<PlaybackState> {
-    return { state: engine.getState() };
-  },
-
-  async getState(): Promise<State> {
-    return engine.getState();
-  },
-
-  async getPosition(): Promise<number> {
-    return engine.getPosition();
-  },
-
-  async getDuration(): Promise<number> {
-    return engine.getDuration();
+    return {
+      state: engine.getState(),
+      position: engine.getPosition(),
+      duration: engine.getDuration(),
+    };
   },
 
   async getProgress(): Promise<Progress> {
