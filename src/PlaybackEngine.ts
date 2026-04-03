@@ -158,7 +158,7 @@ export class PlaybackEngine {
   // ---------------------------------------------------------------------------
 
   async loadAndPlay(track: Track, startOffset = 0): Promise<void> {
-    this.assertReady();
+    this.ensureReady();
 
     // Increment generation — any in-flight load from a previous call will
     // detect the mismatch at its next yield point and abort.
@@ -327,7 +327,7 @@ export class PlaybackEngine {
 
   async seekTo(seconds: number): Promise<void> {
     if (!this.currentTrackUrl && !this.currentBuffer) return;
-    this.assertReady();
+    this.ensureReady();
 
     const wasPlaying = this._state === State.Playing;
 
@@ -546,9 +546,15 @@ export class PlaybackEngine {
     emitter.emit(Event.PlaybackState, { state });
   }
 
-  private assertReady(): void {
+  /**
+   * Ensures the AudioContext and GainNode are initialized, calling init() if needed.
+   * init() is idempotent — safe to call multiple times.
+   * This replaces the old assertReady() throw so callers no longer need to call
+   * setupPlayer() / init() explicitly before using the engine.
+   */
+  private ensureReady(): void {
     if (!this.context || !this.gainNode) {
-      throw new Error('PlaybackEngine: not initialized. Call TrackPlayer.setupPlayer() first.');
+      this.init();
     }
   }
 
