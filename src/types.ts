@@ -35,7 +35,6 @@ export enum Event {
   PlaybackActiveTrackChanged = 'playback-active-track-changed',
   RemotePlay                 = 'remote-play',
   RemotePause                = 'remote-pause',
-  RemoteStop                 = 'remote-stop',
   RemoteNext                 = 'remote-next',
   RemotePrevious             = 'remote-previous',
   RemoteSeek                 = 'remote-seek',
@@ -44,7 +43,6 @@ export enum Event {
 export enum Capability {
   Play           = 'play',
   Pause          = 'pause',
-  Stop           = 'stop',
   SkipToNext     = 'skip-to-next',
   SkipToPrevious = 'skip-to-previous',
   SeekTo         = 'seek-to',

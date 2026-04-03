@@ -14,7 +14,6 @@ import { emitter } from './EventEmitter';
 const CAPABILITY_TO_CONTROL: Partial<Record<Capability, string>> = {
   [Capability.Play]:           'play',
   [Capability.Pause]:          'pause',
-  // Note: RNAP has no 'stop' control — omit it; stop is handled by the app
   [Capability.SkipToNext]:     'next',
   [Capability.SkipToPrevious]: 'previous',
   [Capability.SeekTo]:         'seekTo',
@@ -73,8 +72,6 @@ export class NotificationBridge {
         'playbackNotificationPause',
         () => emitter.emit(Event.RemotePause)
       ),
-      // Note: RNAP has no 'stop' notification event. RemoteStop is not wired
-      // here — it fires only from app-level calls to TrackPlayer.stop().
       PlaybackNotificationManager.addEventListener(
         'playbackNotificationNext',
         () => emitter.emit(Event.RemoteNext)
