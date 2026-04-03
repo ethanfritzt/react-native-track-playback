@@ -72,6 +72,22 @@ export interface UpdateOptions {
   capabilities?: Capability[];
 }
 
+/**
+ * Emitted as the payload of `Event.PlaybackError`.
+ *
+ * Extends `Error` so consumers get a stack trace, can use `instanceof
+ * PlaybackError`, and integrate naturally with error-monitoring tools.
+ */
+export class PlaybackError extends Error {
+  constructor(
+    message: string,
+    public readonly code: number,
+  ) {
+    super(message);
+    this.name = 'PlaybackError';
+  }
+}
+
 /** Payload emitted with Event.RemoteSeek. */
 export interface RemoteSeekEvent {
   position: number;
