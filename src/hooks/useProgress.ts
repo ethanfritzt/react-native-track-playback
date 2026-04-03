@@ -4,10 +4,7 @@ import { emitter } from '../EventEmitter';
 
 /**
  * Polls position/duration from the engine on an interval.
- * Returns { position, duration, buffered } — all in seconds.
- *
- * `buffered` always equals `duration` because decodeAudioData loads the entire
- * file into memory before playback starts.
+ * Returns { position, duration } — all in seconds.
  *
  * The getters are registered by TrackPlayer.setupPlayer() via
  * _registerProgressGetters() to avoid circular imports.
@@ -44,7 +41,6 @@ export function useProgress(updateInterval = 1000): Progress {
   const [progress, setProgress] = useState<Progress>({
     position: 0,
     duration: 0,
-    buffered: 0,
   });
 
   // Only poll while the engine is actively playing — position doesn't change
@@ -64,7 +60,7 @@ export function useProgress(updateInterval = 1000): Progress {
       isActiveRef.current = true;
       const position = _getPosition();
       const duration = _getDuration();
-      setProgress({ position, duration, buffered: duration });
+      setProgress({ position, duration });
     }
   }, []);
 
@@ -88,13 +84,13 @@ export function useProgress(updateInterval = 1000): Progress {
         // Prefer metadata duration (available immediately); fall back to the
         // engine's decoded duration for tracks without metadata.
         const duration = track.duration ?? _getDuration();
-        setProgress({ position: 0, duration, buffered: duration });
+        setProgress({ position: 0, duration });
         // The track change always accompanies the start of playback, so mark
         // the ref active so the interval begins ticking straight away.
         isActiveRef.current = true;
       } else {
         // track is null — queue was cleared or stopped
-        setProgress({ position: 0, duration: 0, buffered: 0 });
+        setProgress({ position: 0, duration: 0 });
         isActiveRef.current = false;
       }
     });
@@ -116,7 +112,7 @@ export function useProgress(updateInterval = 1000): Progress {
       setProgress(prev =>
         prev.position === position && prev.duration === duration
           ? prev
-          : { position, duration, buffered: duration }
+          : { position, duration }
       );
     }, updateInterval);
 
