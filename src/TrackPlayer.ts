@@ -148,7 +148,7 @@ const TrackPlayer = {
   },
 
   /** Append tracks to the end of the queue. */
-  async add(tracks: Track[]): Promise<void> {
+  add(tracks: Track[]): void {
     queue.add(tracks);
   },
 
@@ -156,23 +156,23 @@ const TrackPlayer = {
    * Remove tracks by index or Track object (single or array).
    * Also accepts Track objects for convenience (resolved to indices by URL).
    */
-  async remove(indexOrIndices: number | number[] | Track | Track[]): Promise<void> {
+  remove(indexOrIndices: number | number[] | Track | Track[]): void {
     queue.remove(indexOrIndices);
   },
 
-  async getQueue(): Promise<readonly Track[]> {
+  getQueue(): readonly Track[] {
     return queue.getQueue();
   },
 
-  async getTrack(index: number): Promise<Track | undefined> {
+  getTrack(index: number): Track | undefined {
     return queue.getTrack(index);
   },
 
-  async getActiveTrack(): Promise<Track | undefined> {
+  getActiveTrack(): Track | undefined {
     return queue.getActiveTrack();
   },
 
-  async getActiveTrackIndex(): Promise<number> {
+  getActiveTrackIndex(): number {
     return queue.getActiveIndex();
   },
 
@@ -371,23 +371,23 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
-  async getPlaybackState(): Promise<PlaybackState> {
+  getPlaybackState(): PlaybackState {
     return { state: engine.getState() };
   },
 
-  async getState(): Promise<State> {
+  getState(): State {
     return engine.getState();
   },
 
-  async getPosition(): Promise<number> {
+  getPosition(): number {
     return engine.getPosition();
   },
 
-  async getDuration(): Promise<number> {
+  getDuration(): number {
     return engine.getDuration();
   },
 
-  async getProgress(): Promise<Progress> {
+  getProgress(): Progress {
     return {
       position: engine.getPosition(),
       duration: engine.getDuration(),
