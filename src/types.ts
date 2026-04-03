@@ -57,8 +57,6 @@ export interface PlaybackState {
 export interface Progress {
   position: number;
   duration: number;
-  /** Always equals duration — the full buffer is decoded into memory. */
-  buffered: number;
 }
 
 export interface ActiveTrackChangedEvent {
