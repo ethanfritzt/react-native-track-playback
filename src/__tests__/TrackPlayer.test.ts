@@ -380,13 +380,12 @@ describe('seekTo / getPosition / getProgress', () => {
     );
   });
 
-  it('getProgress returns position, duration, and buffered', async () => {
+  it('getProgress returns position and duration', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1, 180)]);
     await TrackPlayer.play();
     const prog = await TrackPlayer.getProgress();
     expect(prog.duration).toBe(180);
-    expect(prog.buffered).toBe(180); // always equals duration in streaming mode
     expect(prog.position).toBeCloseTo(0, 4);
   });
 });

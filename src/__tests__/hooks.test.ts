@@ -242,17 +242,6 @@ describe('useProgress — polling interval', () => {
     expect(getPosition.mock.calls.length).toBe(callsBeforeClear);
   });
 
-  it('buffered should always equal duration (per hook contract)', () => {
-    // The hook sets buffered: duration in every setProgress call
-    // Verify the contract by checking the Progress type shape
-    _registerProgressGetters(() => 30, () => 300, () => State.Playing);
-
-    // Simulate what the hook does: { position, duration, buffered: duration }
-    const duration = 300;
-    const progress = { position: 30, duration, buffered: duration };
-    expect(progress.buffered).toBe(progress.duration);
-  });
-
   it('PlaybackState → Paused should stop the active polling flag', () => {
     let isActive = false;
 

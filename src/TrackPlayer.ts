@@ -1,4 +1,4 @@
-import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions, PlaybackError, EventPayloadMap, Subscription } from './types';
+import { Track, TrackMetadata, State, Event, PlaybackState, Progress, UpdateOptions, PlaybackError, EventPayloadMap, Subscription } from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
@@ -387,12 +387,10 @@ const TrackPlayer = {
     return engine.getDuration();
   },
 
-  async getProgress(): Promise<{ position: number; duration: number; buffered: number }> {
-    const duration = engine.getDuration();
+  async getProgress(): Promise<Progress> {
     return {
       position: engine.getPosition(),
-      duration,
-      buffered: duration,
+      duration: engine.getDuration(),
     };
   },
 };
