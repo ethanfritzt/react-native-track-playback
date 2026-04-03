@@ -67,6 +67,7 @@ export { MockAudioBuffer as AudioBuffer };
 // ---------------------------------------------------------------------------
 
 export class MockGainNode {
+  gain = { value: 1 };
   connect = jest.fn();
   disconnect = jest.fn();
 }

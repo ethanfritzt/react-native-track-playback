@@ -392,6 +392,36 @@ describe('seekTo / getPosition / getProgress', () => {
 });
 
 // ---------------------------------------------------------------------------
+// setVolume
+// ---------------------------------------------------------------------------
+
+describe('setVolume', () => {
+  it('sets gain.value on the GainNode', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    await TrackPlayer.setVolume(0.5);
+    expect(getLastAudioContext()!._gainNode.gain.value).toBe(0.5);
+  });
+
+  it('clamps volume to 0 when given a negative value', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    await TrackPlayer.setVolume(-1);
+    expect(getLastAudioContext()!._gainNode.gain.value).toBe(0);
+  });
+
+  it('clamps volume to 1 when given a value greater than 1', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    await TrackPlayer.setVolume(2);
+    expect(getLastAudioContext()!._gainNode.gain.value).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Auto-advance (natural track end)
 // ---------------------------------------------------------------------------
 
