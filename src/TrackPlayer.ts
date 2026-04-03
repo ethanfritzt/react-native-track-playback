@@ -121,7 +121,7 @@ const TrackPlayer = {
    * The handler receives the correct payload type for the given event.
    * Returns a subscription object with a `.remove()` method.
    */
-  addEventListener<E extends Event>(
+  addEventListener<E extends keyof EventPayloadMap>(
     event: E,
     handler: (payload: EventPayloadMap[E]) => void
   ): Subscription {
