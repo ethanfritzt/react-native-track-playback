@@ -61,8 +61,14 @@ afterEach(() => {
 // setupPlayer / updateOptions
 // ---------------------------------------------------------------------------
 
-describe('setupPlayer', () => {
-  it('initialises without throwing', async () => {
+describe('setupPlayer (deprecated)', () => {
+  it('resolves without throwing', async () => {
+    await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
+  });
+
+  it('is idempotent — calling multiple times does not throw', async () => {
+    await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
+    await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
     await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
   });
 });
