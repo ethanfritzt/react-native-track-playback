@@ -1,4 +1,4 @@
-import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions, PlaybackError } from './types';
+import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions, PlaybackError, EventPayloadMap, Subscription } from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
@@ -117,14 +117,15 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   /**
-   * Register a listener for a TrackPlayer event.
+   * Register a typed listener for a TrackPlayer event.
+   * The handler receives the correct payload type for the given event.
    * Returns a subscription object with a `.remove()` method.
    */
-  addEventListener(
-    event: Event,
-    handler: (...args: unknown[]) => void
-  ): { remove: () => void } {
-    const unsub = emitter.on(event, handler);
+  addEventListener<E extends keyof EventPayloadMap>(
+    event: E,
+    handler: (payload: EventPayloadMap[E]) => void
+  ): Subscription {
+    const unsub = emitter.on(event, handler as (...args: unknown[]) => void);
     return { remove: unsub };
   },
 
