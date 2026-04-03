@@ -428,6 +428,15 @@ export class PlaybackEngine {
     return this._state;
   }
 
+  /**
+   * Set the playback volume. Clamped to [0, 1].
+   * Has no effect if the engine is not initialized.
+   */
+  setVolume(volume: number): void {
+    if (!this.gainNode) return;
+    this.gainNode.gain.value = Math.max(0, Math.min(1, volume));
+  }
+
   // ---------------------------------------------------------------------------
   // Callbacks
   // ---------------------------------------------------------------------------

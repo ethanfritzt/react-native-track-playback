@@ -386,6 +386,13 @@ const TrackPlayer = {
     return engine.getDuration();
   },
 
+  /**
+   * Set the playback volume. Value is clamped to [0, 1].
+   */
+  async setVolume(volume: number): Promise<void> {
+    engine.setVolume(volume);
+  },
+
   async getProgress(): Promise<{ position: number; duration: number; buffered: number }> {
     const duration = engine.getDuration();
     return {
