@@ -6,7 +6,7 @@ import {
   type AudioBuffer,
   type StreamerNode,
 } from 'react-native-audio-api';
-import { Event, State, Track } from './types';
+import { Event, State, Track, PlaybackError } from './types';
 import { emitter } from './EventEmitter';
 
 /**
@@ -461,7 +461,7 @@ export class PlaybackEngine {
         this.setState(State.Ended);
         this.streamerNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+          emitter.emit(Event.PlaybackError, new PlaybackError(err.message, -1));
         });
       }
     }, 250);
@@ -495,7 +495,7 @@ export class PlaybackEngine {
         this.setState(State.Ended);
         this.sourceNode = null;
         Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, { message: err.message, code: -1 });
+          emitter.emit(Event.PlaybackError, new PlaybackError(err.message, -1));
         });
       }
     };

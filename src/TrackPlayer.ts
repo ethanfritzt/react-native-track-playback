@@ -1,4 +1,4 @@
-import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions } from './types';
+import { Track, TrackMetadata, State, Event, PlaybackState, UpdateOptions, PlaybackError } from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
@@ -29,10 +29,10 @@ engine.onTrackEnded(async () => {
     try {
       await engine.loadAndPlay(next);
     } catch (err: unknown) {
-      emitter.emit(Event.PlaybackError, {
-        message: err instanceof Error ? err.message : String(err),
-        code: -1,
-      });
+      emitter.emit(Event.PlaybackError, new PlaybackError(
+        err instanceof Error ? err.message : String(err),
+        -1,
+      ));
       return;
     }
     bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
