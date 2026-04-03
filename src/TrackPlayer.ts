@@ -64,6 +64,24 @@ engine.onTrackEnded(async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensures the engine is initialized before use.
+ * Idempotent — safe to call on every public method entry.
+ * This replaces the requirement for callers to explicitly call setupPlayer().
+ */
+function _ensureSetup(): void {
+  engine.init();
+  _registerProgressGetters(
+    () => engine.getPosition(),
+    () => engine.getDuration(),
+    () => engine.getState(),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // TrackPlayer public API
 // ---------------------------------------------------------------------------
 
@@ -74,18 +92,12 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   /**
-   * Initialize the audio engine and register progress getters for useProgress().
-   * Must be called before any other TrackPlayer method.
+   * @deprecated No longer required. The player now auto-initializes on first
+   * use. Calling this method is a no-op and safe to remove from your app.
+   * Kept for backwards compatibility.
    */
   async setupPlayer(): Promise<void> {
-    engine.init();
-
-    // Wire engine getters into the useProgress hook without creating circular imports
-    _registerProgressGetters(
-      () => engine.getPosition(),
-      () => engine.getDuration(),
-      () => engine.getState(),
-    );
+    _ensureSetup();
   },
 
   /**
@@ -95,8 +107,8 @@ const TrackPlayer = {
    * Call this when you need to fully reset the player (e.g. during hot reload
    * cleanup in development, or when the player is no longer needed).
    *
-   * After calling destroy(), you must call setupPlayer() again before using
-   * any other TrackPlayer methods.
+   * After calling destroy(), the engine will be re-initialized automatically
+   * on the next method call.
    */
   async destroy(): Promise<void> {
     await engine.destroy();
@@ -108,6 +120,7 @@ const TrackPlayer = {
    * Configure playback capabilities (controls shown in the system notification).
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
+    _ensureSetup();
     const caps = options.capabilities ?? [];
     await bridge.setup(caps);
   },
@@ -142,6 +155,7 @@ const TrackPlayer = {
    * - Stopped / Ended / None: no-op on audio state, just resets cleanly
    */
   async setQueue(tracks: Track[]): Promise<void> {
+    _ensureSetup();
     await engine.stop();
     queue.setQueue(tracks);
   },
@@ -183,6 +197,7 @@ const TrackPlayer = {
    * `url` cannot be changed here — use setQueue() or add() for that.
    */
   async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
+    _ensureSetup();
     const updated = queue.updateTrack(index, metadata);
     if (!updated) return;
 
@@ -202,6 +217,7 @@ const TrackPlayer = {
    * stream title changes) without permanently altering the queued track data.
    */
   async updateNowPlayingMetadata(metadata: TrackMetadata): Promise<void> {
+    _ensureSetup();
     const track = queue.getActiveTrack();
     if (!track) return;
 
@@ -215,6 +231,7 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   async play(): Promise<void> {
+    _ensureSetup();
     const state = engine.getState();
 
     if (state === State.Paused) {
@@ -251,6 +268,7 @@ const TrackPlayer = {
   },
 
   async pause(): Promise<void> {
+    _ensureSetup();
     await engine.pause();
     const track = queue.getActiveTrack();
     if (track) {
@@ -259,6 +277,7 @@ const TrackPlayer = {
   },
 
   async stop(): Promise<void> {
+    _ensureSetup();
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
     await engine.stop();
@@ -275,6 +294,7 @@ const TrackPlayer = {
    * Stop playback and clear the queue entirely.
    */
   async reset(): Promise<void> {
+    _ensureSetup();
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
     await engine.stop();
@@ -293,6 +313,7 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   async skipToNext(): Promise<void> {
+    _ensureSetup();
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
     const advanced = queue.skipToNext();
@@ -323,6 +344,7 @@ const TrackPlayer = {
    * Otherwise, go to the previous track.
    */
   async skipToPrevious(): Promise<void> {
+    _ensureSetup();
     const position = engine.getPosition();
 
     if (position > 3) {
@@ -359,6 +381,7 @@ const TrackPlayer = {
   },
 
   async seekTo(seconds: number): Promise<void> {
+    _ensureSetup();
     await engine.seekTo(seconds);
     const track = queue.getActiveTrack();
     if (track) {
@@ -371,22 +394,27 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   async getPlaybackState(): Promise<PlaybackState> {
+    _ensureSetup();
     return { state: engine.getState() };
   },
 
   async getState(): Promise<State> {
+    _ensureSetup();
     return engine.getState();
   },
 
   async getPosition(): Promise<number> {
+    _ensureSetup();
     return engine.getPosition();
   },
 
   async getDuration(): Promise<number> {
+    _ensureSetup();
     return engine.getDuration();
   },
 
   async getProgress(): Promise<{ position: number; duration: number; buffered: number }> {
+    _ensureSetup();
     const duration = engine.getDuration();
     return {
       position: engine.getPosition(),

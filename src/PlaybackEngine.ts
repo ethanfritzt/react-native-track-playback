@@ -548,7 +548,7 @@ export class PlaybackEngine {
 
   private assertReady(): void {
     if (!this.context || !this.gainNode) {
-      throw new Error('PlaybackEngine: not initialized. Call TrackPlayer.setupPlayer() first.');
+      throw new Error('PlaybackEngine: not initialized. This should not happen — please file a bug.');
     }
   }
 

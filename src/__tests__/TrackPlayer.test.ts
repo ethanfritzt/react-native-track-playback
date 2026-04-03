@@ -62,8 +62,17 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('setupPlayer', () => {
-  it('initialises without throwing', async () => {
+  it('initialises without throwing (kept for backwards compat)', async () => {
     await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
+  });
+
+  it('auto-initializes on first use — play() works without calling setupPlayer()', async () => {
+    // Intentionally skip setup() / setupPlayer()
+    const track = { url: 'https://example.com/track.mp3', title: 'Auto-init Track', duration: 60 };
+    await TrackPlayer.setQueue([track]);
+    // play() should trigger _ensureSetup() internally — no throw expected
+    await expect(TrackPlayer.play()).resolves.toBeUndefined();
+    expect(await TrackPlayer.getState()).toBe(State.Playing);
   });
 });
 
