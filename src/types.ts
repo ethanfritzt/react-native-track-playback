@@ -87,3 +87,29 @@ export class PlaybackError extends Error {
     this.name = 'PlaybackError';
   }
 }
+
+/** Payload emitted with Event.RemoteSeek. */
+export interface RemoteSeekEvent {
+  position: number;
+}
+
+/**
+ * Maps each Event value to the payload type its handler receives.
+ * Used by the overloaded addEventListener signature to give callers
+ * a fully-typed handler without any casts.
+ */
+export interface EventPayloadMap {
+  [Event.PlaybackState]: PlaybackState;
+  [Event.PlaybackError]: PlaybackError;
+  [Event.PlaybackActiveTrackChanged]: ActiveTrackChangedEvent;
+  [Event.RemotePlay]: void;
+  [Event.RemotePause]: void;
+  [Event.RemoteNext]: void;
+  [Event.RemotePrevious]: void;
+  [Event.RemoteSeek]: RemoteSeekEvent;
+}
+
+/** Returned by addEventListener — call remove() to unsubscribe. */
+export interface Subscription {
+  remove: () => void;
+}
