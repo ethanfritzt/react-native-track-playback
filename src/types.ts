@@ -66,8 +66,16 @@ export interface ActiveTrackChangedEvent {
   lastIndex: number;
 }
 
+/**
+ * Options passed to TrackPlayer.updateOptions().
+ *
+ * @param capabilities - Controls shown in the system media notification /
+ *   lock screen. Maps to RNAP's PlaybackNotificationManager.enableControl().
+ *   Only the listed capabilities are enabled; all others are explicitly
+ *   disabled. Defaults to all capabilities disabled if omitted.
+ */
 export interface UpdateOptions {
-  capabilities?: Capability[];
+  capabilities: Capability[];
 }
 
 /**
