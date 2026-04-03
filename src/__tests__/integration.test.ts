@@ -20,7 +20,7 @@
  */
 
 import TrackPlayer from '../TrackPlayer';
-import { Event, State } from '../types';
+import { Event, State, PlaybackError } from '../types';
 import {
   getLastAudioContext,
   getCreatedStreamers,
@@ -534,6 +534,8 @@ describe('Bug #9: silent error swallow on auto-advance', () => {
 
     // BUG #9: on unfixed code errors.length === 0
     expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]).toBeInstanceOf(PlaybackError);
+    expect((errors[0] as PlaybackError).code).toBe(-1);
   });
 });
 
