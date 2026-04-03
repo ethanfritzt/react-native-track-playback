@@ -242,6 +242,23 @@ describe('useProgress — polling interval', () => {
     expect(getPosition.mock.calls.length).toBe(callsBeforeClear);
   });
 
+  it('PlaybackState → Playing immediately reads position (snap on resume)', () => {
+    // Arrange: register getters with a known position value
+    const getPosition = jest.fn(() => 42);
+    const getDuration = jest.fn(() => 180);
+    _registerProgressGetters(getPosition, getDuration, () => State.Playing);
+
+    // Track setProgress calls by subscribing to the underlying emitter
+    // (we test the module-level behaviour directly without mounting the hook)
+    let callsBefore = getPosition.mock.calls.length;
+
+    // Act: simulate a resume event
+    emitter.emit(Event.PlaybackState, { state: State.Playing });
+
+    // Assert: getPosition was called immediately, without any timer advance
+    expect(getPosition.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
   it('PlaybackState → Paused should stop the active polling flag', () => {
     let isActive = false;
 

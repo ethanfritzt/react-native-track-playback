@@ -66,10 +66,23 @@ export function useProgress(updateInterval = 1000): Progress {
 
   // Track the playback-state event to keep isActiveRef in sync with ongoing
   // state changes (play, pause, stop, etc.) after mount.
+  // On transition to Playing, immediately snapshot the current position so the
+  // UI reflects the correct value without waiting up to updateInterval ms for
+  // the next interval tick (fixes stale position on resume from pause).
   useEffect(() => {
     const unsub = emitter.on(Event.PlaybackState, (payload) => {
       const { state } = payload as { state: State };
-      isActiveRef.current = state === State.Playing;
+      const isPlaying = state === State.Playing;
+      isActiveRef.current = isPlaying;
+      if (isPlaying) {
+        const position = _getPosition();
+        const duration = _getDuration();
+        setProgress(prev =>
+          prev.position === position && prev.duration === duration
+            ? prev
+            : { position, duration }
+        );
+      }
     });
     return unsub;
   }, []);
