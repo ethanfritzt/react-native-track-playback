@@ -455,7 +455,7 @@ export class PlaybackEngine {
         this.clearStreamerEndedPoller();
         return;
       }
-      const epsilon = 0.5;
+      const epsilon = 0.1;
       if (this.getPosition() >= this.currentTrackDuration - epsilon) {
         this.clearStreamerEndedPoller();
         this.setState(State.Ended);
