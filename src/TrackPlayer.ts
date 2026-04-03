@@ -4,6 +4,7 @@ import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
+import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -86,6 +87,9 @@ const TrackPlayer = {
       () => engine.getDuration(),
       () => engine.getState(),
     );
+
+    // Wire active-track getter into useActiveTrack without creating circular imports
+    _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
   },
 
   /**
