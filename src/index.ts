@@ -15,8 +15,8 @@ export { default } from './TrackPlayer';
 
 
 // Types & enums
-export type { Track, TrackMetadata, PlaybackState, Progress, UpdateOptions, ActiveTrackChangedEvent } from './types';
-export { State, Event, Capability } from './types';
+export type { Track, TrackMetadata, PlaybackState, Progress, UpdateOptions, ActiveTrackChangedEvent, RemoteSeekEvent, EventPayloadMap, Subscription } from './types';
+export { State, Event, Capability, PlaybackError } from './types';
 
 // React hooks
 export { usePlaybackState } from './hooks/usePlaybackState';

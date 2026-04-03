@@ -105,7 +105,7 @@ describe('Scenario 1: full single-track lifecycle (streaming path)', () => {
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () =>
       events.push('trackChanged'),
     );
-    TrackPlayer.addEventListener(Event.PlaybackState, (e: any) =>
+    TrackPlayer.addEventListener(Event.PlaybackState, (e) =>
       events.push(`state:${e.state}`),
     );
 
@@ -176,7 +176,7 @@ describe('Scenario 2: full multi-track auto-advance (streaming path)', () => {
     await TrackPlayer.play();
 
     const changes: Array<{ index: number; lastIndex: number }> = [];
-    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e: any) => {
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e) => {
       changes.push({ index: e.index, lastIndex: e.lastIndex });
     });
 
@@ -404,7 +404,7 @@ describe('Scenario 6: skipToPrevious / skipToNext edge cases', () => {
     await TrackPlayer.play();
 
     const indices: number[] = [];
-    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e: any) => {
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e) => {
       indices.push(e.index);
     });
 
@@ -611,7 +611,7 @@ describe('Bug #11: end-of-queue cleanup', () => {
     await setup();
 
     let receivedNullTrackEvent = false;
-    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e: any) => {
+    TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e) => {
       if (e.track === null) receivedNullTrackEvent = true;
     });
 
