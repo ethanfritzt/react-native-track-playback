@@ -1,5 +1,5 @@
 {
-  "name": "react-native-track-playback",
+  "name": "@ethanfritzt/react-native-playback",
   "version": "0.1.0",
   "description": "A React Native audio playback library built on react-native-audio-api",
   "main": "dist/index.js",
@@ -70,5 +70,9 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   }
 }

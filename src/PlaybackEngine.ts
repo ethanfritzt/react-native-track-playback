@@ -29,7 +29,7 @@ import { emitter } from './EventEmitter';
  *
  * To enable StreamerNode, the react-native-audio-api plugin must be built with FFmpeg
  * (disableFFmpeg: false, which is the default and is explicitly forwarded by the
- * react-native-track-playback Expo plugin).
+ * @ethanfritzt/react-native-playback Expo plugin).
  *
  * ## Position tracking
  *

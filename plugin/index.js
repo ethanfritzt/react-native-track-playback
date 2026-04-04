@@ -2,10 +2,10 @@
 "use strict";
 
 /**
- * Expo config plugin for react-native-track-playback.
+ * Expo config plugin for @ethanfritzt/react-native-playback.
  *
  * This plugin is a thin wrapper around react-native-audio-api's own config
- * plugin. Consumers only need to add react-native-track-playback to their
+ * plugin. Consumers only need to add @ethanfritzt/react-native-playback to their
  * plugins array — they do not need to configure react-native-audio-api
  * separately.
  *
@@ -18,7 +18,7 @@
  * Usage in app.json / app.config.js:
  *   {
  *     "plugins": [
- *       ["react-native-track-playback", { "iosBackgroundMode": true }]
+ *       ["@ethanfritzt/react-native-playback", { "iosBackgroundMode": true }]
  *     ]
  *   }
  */
@@ -37,7 +37,7 @@ function getRNAPPlugin() {
     return rnap.default ?? rnap;
   } catch {
     throw new Error(
-      "[react-native-track-playback] Could not find react-native-audio-api plugin.\n" +
+      "[@ethanfritzt/react-native-playback] Could not find react-native-audio-api plugin.\n" +
         "Make sure react-native-audio-api is installed:\n" +
         "  npx expo install react-native-audio-api\n",
     );
@@ -91,6 +91,6 @@ function withTrackPlayback(config, options = {}) {
 
 module.exports = createRunOncePlugin(
   withTrackPlayback,
-  "react-native-track-playback",
+  "@ethanfritzt/react-native-playback",
   "0.1.0",
 );
