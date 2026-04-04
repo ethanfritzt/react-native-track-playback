@@ -72,7 +72,7 @@ export class QueueManager {
   updateTrack(index: number, patch: TrackMetadata): boolean {
     if (index < 0 || index >= this.queue.length) return false;
     // Object.assign mutates in-place — no new array allocation needed
-    Object.assign(this.queue[index]!, patch);
+    Object.assign(this.queue[index], patch);
     return true;
   }
 
