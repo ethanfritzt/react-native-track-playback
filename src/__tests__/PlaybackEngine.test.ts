@@ -163,7 +163,6 @@ describe('loadAndPlay (streaming path)', () => {
   it('sets State.Error and re-throws when initialize returns false', async () => {
     // const engine = makeEngine();
     // Make the next streamer's initialize fail
-    const _origCreateStreamer = MockAudioContext.prototype.createStreamer;
     // Temporarily patch via the probe-created streamer list
     // by replacing initialize on the factory result
     const patchedEngine = makeEngine();
