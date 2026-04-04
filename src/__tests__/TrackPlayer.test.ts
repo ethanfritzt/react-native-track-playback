@@ -36,7 +36,6 @@ function track(n: number, duration = 30) {
 }
 
 async function setup() {
-  await TrackPlayer.setupPlayer();
   await TrackPlayer.updateOptions({
     capabilities: [],
   });
@@ -57,19 +56,8 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-// ---------------------------------------------------------------------------
-// setupPlayer / updateOptions
-// ---------------------------------------------------------------------------
-
-describe('setupPlayer', () => {
-  it('initialises without throwing', async () => {
-    await expect(TrackPlayer.setupPlayer()).resolves.toBeUndefined();
-  });
-});
-
 describe('updateOptions', () => {
   it('calls PlaybackNotificationManager.enableControl for each known control', async () => {
-    await TrackPlayer.setupPlayer();
     await TrackPlayer.updateOptions({ capabilities: [] });
     // 7 controls total (play, pause, next, previous, skipForward, skipBackward, seekTo)
     expect(PlaybackNotificationManager.enableControl).toHaveBeenCalledTimes(7);
@@ -104,7 +92,12 @@ describe('setQueue', () => {
     expect(handler).not.toHaveBeenCalled(); // setQueue alone should not emit
     await TrackPlayer.play();
     expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({ track: expect.objectContaining({ title: 'Track 1' }), index: 0, lastTrack: null, lastIndex: -1 })
+      expect.objectContaining({
+        track: expect.objectContaining({ title: 'Track 1' }),
+        index: 0,
+        lastTrack: null,
+        lastIndex: -1,
+      })
     );
   });
 
@@ -170,7 +163,6 @@ describe('add / remove / getQueue / getTrack', () => {
     expect(t?.title).toBe('Track 2');
   });
 });
-
 
 // ---------------------------------------------------------------------------
 // play / pause
@@ -260,7 +252,11 @@ describe('stop / reset', () => {
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
     await TrackPlayer.stop();
     expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({ track: null, index: -1, lastTrack: expect.objectContaining({ title: 'Track 1' }) })
+      expect.objectContaining({
+        track: null,
+        index: -1,
+        lastTrack: expect.objectContaining({ title: 'Track 1' }),
+      })
     );
   });
 
@@ -281,7 +277,11 @@ describe('stop / reset', () => {
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
     await TrackPlayer.reset();
     expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({ track: null, index: -1, lastTrack: expect.objectContaining({ title: 'Track 1' }) })
+      expect.objectContaining({
+        track: null,
+        index: -1,
+        lastTrack: expect.objectContaining({ title: 'Track 1' }),
+      })
     );
   });
 });
@@ -309,9 +309,7 @@ describe('skipToNext', () => {
     const handler = jest.fn();
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, handler);
     await TrackPlayer.skipToNext();
-    expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({ index: 1, lastIndex: 0 })
-    );
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ index: 1, lastIndex: 0 }));
   });
 
   it('is a no-op at the end of the queue', async () => {
@@ -403,8 +401,8 @@ describe('auto-advance on track end', () => {
 
     getLastAudioContext()!.advanceTime(31);
     jest.advanceTimersByTime(250);
-    await new Promise(r => setImmediate(r));
-    await new Promise(r => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
 
     const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
@@ -420,8 +418,8 @@ describe('auto-advance on track end', () => {
 
     getLastAudioContext()!.advanceTime(31);
     jest.advanceTimersByTime(250);
-    await new Promise(r => setImmediate(r));
-    await new Promise(r => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
 
     expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
   });
@@ -436,16 +434,14 @@ describe('auto-advance on track end', () => {
 
     getLastAudioContext()!.advanceTime(31);
     jest.advanceTimersByTime(250);
-    await new Promise(r => setImmediate(r));
-    await new Promise(r => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
 
     const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
     const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
-    expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({ index: 1 })
-    );
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ index: 1 }));
   });
 });
 

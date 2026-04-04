@@ -1,4 +1,15 @@
-import { Track, TrackMetadata, State, Event, PlaybackState, Progress, UpdateOptions, PlaybackError, EventPayloadMap, Subscription } from './types';
+import {
+  Track,
+  TrackMetadata,
+  State,
+  Event,
+  PlaybackState,
+  Progress,
+  UpdateOptions,
+  PlaybackError,
+  EventPayloadMap,
+  Subscription,
+} from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
@@ -15,11 +26,10 @@ const engine = new PlaybackEngine();
 const bridge = new NotificationBridge();
 
 // Wire engine getters into hooks at module-load time so hooks work correctly
-// regardless of whether setupPlayer() has been called (it is now a no-op).
 _registerProgressGetters(
   () => engine.getPosition(),
   () => engine.getDuration(),
-  () => engine.getState(),
+  () => engine.getState()
 );
 _registerStateGetter(() => engine.getState());
 
@@ -39,10 +49,10 @@ engine.onTrackEnded(async () => {
     try {
       await engine.loadAndPlay(next);
     } catch (err: unknown) {
-      emitter.emit(Event.PlaybackError, new PlaybackError(
-        err instanceof Error ? err.message : String(err),
-        -1,
-      ));
+      emitter.emit(
+        Event.PlaybackError,
+        new PlaybackError(err instanceof Error ? err.message : String(err), -1)
+      );
       return;
     }
     bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
@@ -57,7 +67,9 @@ engine.onTrackEnded(async () => {
     // Kick off prefetch for the track after this one
     const upcoming = queue.getTrack(nextIndex + 1);
     if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => { /* non-fatal */ });
+      engine.prefetchNext(upcoming).catch(() => {
+        /* non-fatal */
+      });
     }
   } else {
     // Reached end of queue — reset engine to Stopped and notify listeners so
@@ -78,20 +90,9 @@ engine.onTrackEnded(async () => {
 // ---------------------------------------------------------------------------
 
 const TrackPlayer = {
-
   // --------------------------------------------------------------------------
   // Setup
   // --------------------------------------------------------------------------
-
-  /**
-   * Initialize the audio engine and register progress getters for useProgress().
-   * @deprecated No longer required. The player initializes automatically on
-   * first use and hook getters are registered at module-load time.
-   * This method is a no-op and will be removed in a future version.
-   */
-  async setupPlayer(): Promise<void> {
-    // no-op — kept for backwards compatibility
-  },
 
   /**
    * Tear down the player completely — stops playback, clears the queue, destroys
@@ -100,7 +101,8 @@ const TrackPlayer = {
    * Call this when you need to fully reset the player (e.g. during hot reload
    * cleanup in development, or when the player is no longer needed).
    *
-   * After calling destroy(), the engine will re-initialize automatically on next use.
+   * After calling destroy(), the player will auto-initialize on the next method
+   * call.
    */
   async destroy(): Promise<void> {
     await engine.destroy();
@@ -318,7 +320,9 @@ const TrackPlayer = {
 
     const upcoming = queue.getTrack(index + 1);
     if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => { /* non-fatal */ });
+      engine.prefetchNext(upcoming).catch(() => {
+        /* non-fatal */
+      });
     }
   },
 
