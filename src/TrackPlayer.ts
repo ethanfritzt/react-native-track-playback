@@ -1,10 +1,22 @@
-import { Track, TrackMetadata, State, Event, PlaybackState, Progress, UpdateOptions, PlaybackError, EventPayloadMap, Subscription } from './types';
+import {
+  Track,
+  TrackMetadata,
+  State,
+  Event,
+  PlaybackState,
+  Progress,
+  UpdateOptions,
+  PlaybackError,
+  EventPayloadMap,
+  Subscription,
+} from './types';
 import { QueueManager } from './QueueManager';
 import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
 import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
+import { _registerStateGetter } from './hooks/usePlaybackState';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -13,6 +25,17 @@ import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
 const queue = new QueueManager();
 const engine = new PlaybackEngine();
 const bridge = new NotificationBridge();
+
+// Wire engine getters into hooks at module-load time so hooks work correctly
+_registerProgressGetters(
+  () => engine.getPosition(),
+  () => engine.getDuration(),
+  () => engine.getState()
+);
+_registerStateGetter(() => engine.getState());
+
+// Wire active-track getter into useActiveTrack without creating circular imports
+_registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 engine.onTrackEnded(async () => {
@@ -30,10 +53,10 @@ engine.onTrackEnded(async () => {
     try {
       await engine.loadAndPlay(next);
     } catch (err: unknown) {
-      emitter.emit(Event.PlaybackError, new PlaybackError(
-        err instanceof Error ? err.message : String(err),
-        -1,
-      ));
+      emitter.emit(
+        Event.PlaybackError,
+        new PlaybackError(err instanceof Error ? err.message : String(err), -1)
+      );
       return;
     }
     bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
@@ -48,7 +71,9 @@ engine.onTrackEnded(async () => {
     // Kick off prefetch for the track after this one
     const upcoming = queue.getTrack(nextIndex + 1);
     if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => { /* non-fatal */ });
+      engine.prefetchNext(upcoming).catch(() => {
+        /* non-fatal */
+      });
     }
   } else {
     // Reached end of queue — reset engine to Stopped and notify listeners so
@@ -69,29 +94,6 @@ engine.onTrackEnded(async () => {
 // ---------------------------------------------------------------------------
 
 const TrackPlayer = {
-
-  // --------------------------------------------------------------------------
-  // Setup
-  // --------------------------------------------------------------------------
-
-  /**
-   * Initialize the audio engine and register progress getters for useProgress().
-   * Must be called before any other TrackPlayer method.
-   */
-  async setupPlayer(): Promise<void> {
-    engine.init();
-
-    // Wire engine getters into the useProgress hook without creating circular imports
-    _registerProgressGetters(
-      () => engine.getPosition(),
-      () => engine.getDuration(),
-      () => engine.getState(),
-    );
-
-    // Wire active-track getter into useActiveTrack without creating circular imports
-    _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
-  },
-
   /**
    * Tear down the player completely — stops playback, clears the queue, destroys
    * the native AudioContext, and removes notification subscriptions.
@@ -99,8 +101,8 @@ const TrackPlayer = {
    * Call this when you need to fully reset the player (e.g. during hot reload
    * cleanup in development, or when the player is no longer needed).
    *
-   * After calling destroy(), you must call setupPlayer() again before using
-   * any other TrackPlayer methods.
+   * After calling destroy(), the player will auto-initialize on the next method
+   * call.
    */
   async destroy(): Promise<void> {
     await engine.destroy();
@@ -112,8 +114,7 @@ const TrackPlayer = {
    * Configure playback capabilities (controls shown in the system notification).
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    const caps = options.capabilities ?? [];
-    await bridge.setup(caps);
+    await bridge.setup(options.capabilities);
   },
 
   // --------------------------------------------------------------------------
@@ -152,7 +153,7 @@ const TrackPlayer = {
   },
 
   /** Append tracks to the end of the queue. */
-  async add(tracks: Track[]): Promise<void> {
+  add(tracks: Track[]): void {
     queue.add(tracks);
   },
 
@@ -160,23 +161,23 @@ const TrackPlayer = {
    * Remove tracks by index or Track object (single or array).
    * Also accepts Track objects for convenience (resolved to indices by URL).
    */
-  async remove(indexOrIndices: number | number[] | Track | Track[]): Promise<void> {
+  remove(indexOrIndices: number | number[] | Track | Track[]): void {
     queue.remove(indexOrIndices);
   },
 
-  async getQueue(): Promise<readonly Track[]> {
+  getQueue(): readonly Track[] {
     return queue.getQueue();
   },
 
-  async getTrack(index: number): Promise<Track | undefined> {
+  getTrack(index: number): Track | undefined {
     return queue.getTrack(index);
   },
 
-  async getActiveTrack(): Promise<Track | undefined> {
+  getActiveTrack(): Track | undefined {
     return queue.getActiveTrack();
   },
 
-  async getActiveTrackIndex(): Promise<number> {
+  getActiveTrackIndex(): number {
     return queue.getActiveIndex();
   },
 
@@ -319,7 +320,9 @@ const TrackPlayer = {
 
     const upcoming = queue.getTrack(index + 1);
     if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => { /* non-fatal */ });
+      engine.prefetchNext(upcoming).catch(() => {
+        /* non-fatal */
+      });
     }
   },
 
@@ -375,23 +378,19 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
-  async getPlaybackState(): Promise<PlaybackState> {
-    return { state: engine.getState() };
+  /**
+   * Returns the current playback state along with position and duration.
+   * One call gets everything needed to render a player UI.
+   */
+  getPlaybackState(): PlaybackState {
+    return {
+      state: engine.getState(),
+      position: engine.getPosition(),
+      duration: engine.getDuration(),
+    };
   },
 
-  async getState(): Promise<State> {
-    return engine.getState();
-  },
-
-  async getPosition(): Promise<number> {
-    return engine.getPosition();
-  },
-
-  async getDuration(): Promise<number> {
-    return engine.getDuration();
-  },
-
-  async getProgress(): Promise<Progress> {
+  getProgress(): Progress {
     return {
       position: engine.getPosition(),
       duration: engine.getDuration(),
