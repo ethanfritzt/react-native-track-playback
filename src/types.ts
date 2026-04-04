@@ -21,7 +21,6 @@ export enum State {
   None      = 'none',
   Loading   = 'loading',
   Buffering = 'buffering',
-  Ready     = 'ready',
   Playing   = 'playing',
   Paused    = 'paused',
   Stopped   = 'stopped',
@@ -52,6 +51,8 @@ export enum Capability {
 
 export interface PlaybackState {
   state: State;
+  position: number;
+  duration: number;
 }
 
 export interface Progress {

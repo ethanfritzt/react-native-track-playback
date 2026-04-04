@@ -116,19 +116,19 @@ describe('Scenario 1: full single-track lifecycle (streaming path)', () => {
     expect(events).toContain('trackChanged');
 
     await TrackPlayer.seekTo(45);
-    expect(TrackPlayer.getPosition()).toBeCloseTo(45, 3);
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
 
     await TrackPlayer.pause();
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Paused });
 
     getLastAudioContext()!.advanceTime(30);
-    expect(TrackPlayer.getPosition()).toBeCloseTo(45, 3);
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
 
     await TrackPlayer.play();
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
 
     getLastAudioContext()!.advanceTime(10);
-    expect(TrackPlayer.getPosition()).toBeCloseTo(55, 3);
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(55, 3);
 
     triggerStreamerEnd(120);
     await flushAsync();
@@ -214,13 +214,13 @@ describe('Scenario 3: full single-track lifecycle (buffer fallback path)', () =>
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Paused });
 
     await TrackPlayer.seekTo(30);
-    expect(TrackPlayer.getPosition()).toBeCloseTo(30, 3);
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(30, 3);
 
     await TrackPlayer.play();
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
 
     getLastAudioContext()!.advanceTime(15);
-    expect(TrackPlayer.getPosition()).toBeCloseTo(45, 3);
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
 
     const progress = TrackPlayer.getProgress();
     expect(progress.duration).toBe(90);
@@ -393,8 +393,8 @@ describe('Scenario 6: skipToPrevious / skipToNext edge cases', () => {
     clearCreatedStreamers();
     await TrackPlayer.skipToPrevious();
 
-    expect(TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
-    expect(TrackPlayer.getPosition()).toBeCloseTo(0, 3);
+    expect(await TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
+    expect((await TrackPlayer.getPlaybackState()).position).toBeCloseTo(0, 3);
   });
 
   it('skip forward then backward then forward emits the correct track-changed events', async () => {

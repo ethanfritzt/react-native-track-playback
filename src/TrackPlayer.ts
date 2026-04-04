@@ -4,6 +4,7 @@ import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
+import { _registerStateGetter } from './hooks/usePlaybackState';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -12,6 +13,15 @@ import { _registerProgressGetters } from './hooks/useProgress';
 const queue = new QueueManager();
 const engine = new PlaybackEngine();
 const bridge = new NotificationBridge();
+
+// Wire engine getters into hooks at module-load time so hooks work correctly
+// regardless of whether setupPlayer() has been called (it is now a no-op).
+_registerProgressGetters(
+  () => engine.getPosition(),
+  () => engine.getDuration(),
+  () => engine.getState(),
+);
+_registerStateGetter(() => engine.getState());
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 engine.onTrackEnded(async () => {
@@ -75,17 +85,12 @@ const TrackPlayer = {
 
   /**
    * Initialize the audio engine and register progress getters for useProgress().
-   * Must be called before any other TrackPlayer method.
+   * @deprecated No longer required. The player initializes automatically on
+   * first use and hook getters are registered at module-load time.
+   * This method is a no-op and will be removed in a future version.
    */
   async setupPlayer(): Promise<void> {
-    engine.init();
-
-    // Wire engine getters into the useProgress hook without creating circular imports
-    _registerProgressGetters(
-      () => engine.getPosition(),
-      () => engine.getDuration(),
-      () => engine.getState(),
-    );
+    // no-op — kept for backwards compatibility
   },
 
   /**
@@ -95,8 +100,7 @@ const TrackPlayer = {
    * Call this when you need to fully reset the player (e.g. during hot reload
    * cleanup in development, or when the player is no longer needed).
    *
-   * After calling destroy(), you must call setupPlayer() again before using
-   * any other TrackPlayer methods.
+   * After calling destroy(), the engine will re-initialize automatically on next use.
    */
   async destroy(): Promise<void> {
     await engine.destroy();
@@ -371,20 +375,16 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
-  getPlaybackState(): PlaybackState {
-    return { state: engine.getState() };
-  },
-
-  getState(): State {
-    return engine.getState();
-  },
-
-  getPosition(): number {
-    return engine.getPosition();
-  },
-
-  getDuration(): number {
-    return engine.getDuration();
+  /**
+   * Returns the current playback state along with position and duration.
+   * One call gets everything needed to render a player UI.
+   */
+  async getPlaybackState(): Promise<PlaybackState> {
+    return {
+      state: engine.getState(),
+      position: engine.getPosition(),
+      duration: engine.getDuration(),
+    };
   },
 
   getProgress(): Progress {

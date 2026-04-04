@@ -367,13 +367,13 @@ describe('skipToPrevious', () => {
 // seekTo / getPosition / getProgress
 // ---------------------------------------------------------------------------
 
-describe('seekTo / getPosition / getProgress', () => {
+describe('seekTo / getPlaybackState / getProgress', () => {
   it('seekTo updates position and updates the notification', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1, 120)]);
     await TrackPlayer.play();
     await TrackPlayer.seekTo(45);
-    const pos = TrackPlayer.getPosition();
+    const { position: pos } = await TrackPlayer.getPlaybackState();
     expect(pos).toBeCloseTo(45, 4);
     expect(PlaybackNotificationManager.show).toHaveBeenLastCalledWith(
       expect.objectContaining({ elapsedTime: 45 })
