@@ -21,7 +21,6 @@ export enum State {
   None      = 'none',
   Loading   = 'loading',
   Buffering = 'buffering',
-  Ready     = 'ready',
   Playing   = 'playing',
   Paused    = 'paused',
   Stopped   = 'stopped',
