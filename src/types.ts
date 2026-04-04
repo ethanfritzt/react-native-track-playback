@@ -1,4 +1,5 @@
 export interface Track {
+  id?: string;
   url: string;
   title?: string;
   artist?: string;
@@ -6,8 +7,6 @@ export interface Track {
   genre?: string;
   artwork?: string;
   duration?: number;
-  // Open-ended: allow any extra fields callers pass through
-  [key: string]: unknown;
 }
 
 /**
@@ -21,7 +20,6 @@ export enum State {
   None      = 'none',
   Loading   = 'loading',
   Buffering = 'buffering',
-  Ready     = 'ready',
   Playing   = 'playing',
   Paused    = 'paused',
   Stopped   = 'stopped',
@@ -52,6 +50,8 @@ export enum Capability {
 
 export interface PlaybackState {
   state: State;
+  position: number;
+  duration: number;
 }
 
 export interface Progress {
@@ -66,8 +66,16 @@ export interface ActiveTrackChangedEvent {
   lastIndex: number;
 }
 
+/**
+ * Options passed to TrackPlayer.updateOptions().
+ *
+ * @param capabilities - Controls shown in the system media notification /
+ *   lock screen. Maps to RNAP's PlaybackNotificationManager.enableControl().
+ *   Only the listed capabilities are enabled; all others are explicitly
+ *   disabled. Defaults to all capabilities disabled if omitted.
+ */
 export interface UpdateOptions {
-  capabilities?: Capability[];
+  capabilities: Capability[];
 }
 
 /**

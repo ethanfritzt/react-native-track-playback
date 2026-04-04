@@ -4,6 +4,7 @@ import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
+import { _registerStateGetter } from './hooks/usePlaybackState';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -12,6 +13,15 @@ import { _registerProgressGetters } from './hooks/useProgress';
 const queue = new QueueManager();
 const engine = new PlaybackEngine();
 const bridge = new NotificationBridge();
+
+// Wire engine getters into hooks at module-load time so hooks work correctly
+// regardless of whether setupPlayer() has been called (it is now a no-op).
+_registerProgressGetters(
+  () => engine.getPosition(),
+  () => engine.getDuration(),
+  () => engine.getState(),
+);
+_registerStateGetter(() => engine.getState());
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 engine.onTrackEnded(async () => {
@@ -94,8 +104,7 @@ const TrackPlayer = {
    * Configure playback capabilities (controls shown in the system notification).
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    const caps = options.capabilities ?? [];
-    await bridge.setup(caps);
+    await bridge.setup(options.capabilities);
   },
 
   // --------------------------------------------------------------------------
@@ -134,7 +143,7 @@ const TrackPlayer = {
   },
 
   /** Append tracks to the end of the queue. */
-  async add(tracks: Track[]): Promise<void> {
+  add(tracks: Track[]): void {
     queue.add(tracks);
   },
 
@@ -142,23 +151,23 @@ const TrackPlayer = {
    * Remove tracks by index or Track object (single or array).
    * Also accepts Track objects for convenience (resolved to indices by URL).
    */
-  async remove(indexOrIndices: number | number[] | Track | Track[]): Promise<void> {
+  remove(indexOrIndices: number | number[] | Track | Track[]): void {
     queue.remove(indexOrIndices);
   },
 
-  async getQueue(): Promise<readonly Track[]> {
+  getQueue(): readonly Track[] {
     return queue.getQueue();
   },
 
-  async getTrack(index: number): Promise<Track | undefined> {
+  getTrack(index: number): Track | undefined {
     return queue.getTrack(index);
   },
 
-  async getActiveTrack(): Promise<Track | undefined> {
+  getActiveTrack(): Track | undefined {
     return queue.getActiveTrack();
   },
 
-  async getActiveTrackIndex(): Promise<number> {
+  getActiveTrackIndex(): number {
     return queue.getActiveIndex();
   },
 
@@ -357,23 +366,19 @@ const TrackPlayer = {
   // State queries
   // --------------------------------------------------------------------------
 
-  async getPlaybackState(): Promise<PlaybackState> {
-    return { state: engine.getState() };
+  /**
+   * Returns the current playback state along with position and duration.
+   * One call gets everything needed to render a player UI.
+   */
+  getPlaybackState(): PlaybackState {
+    return {
+      state: engine.getState(),
+      position: engine.getPosition(),
+      duration: engine.getDuration(),
+    };
   },
 
-  async getState(): Promise<State> {
-    return engine.getState();
-  },
-
-  async getPosition(): Promise<number> {
-    return engine.getPosition();
-  },
-
-  async getDuration(): Promise<number> {
-    return engine.getDuration();
-  },
-
-  async getProgress(): Promise<Progress> {
+  getProgress(): Progress {
     return {
       position: engine.getPosition(),
       duration: engine.getDuration(),

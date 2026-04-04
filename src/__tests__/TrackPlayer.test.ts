@@ -88,7 +88,7 @@ describe('setQueue', () => {
   it('does NOT begin playback — state is Stopped after setQueue alone', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Stopped);
   });
 
@@ -96,7 +96,7 @@ describe('setQueue', () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -115,7 +115,7 @@ describe('setQueue', () => {
   it('sets the active track to the first item', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.url).toBe('http://example.com/track1.mp3');
   });
 
@@ -140,7 +140,7 @@ describe('setQueue', () => {
   it('returns an empty queue for an empty array without throwing', async () => {
     await setup();
     await expect(TrackPlayer.setQueue([])).resolves.toBeUndefined();
-    const q = await TrackPlayer.getQueue();
+    const q = TrackPlayer.getQueue();
     expect(q).toHaveLength(0);
   });
 });
@@ -153,16 +153,16 @@ describe('add / remove / getQueue / getTrack', () => {
   it('add appends tracks to the queue', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1)]);
-    await TrackPlayer.add([track(2), track(3)]);
-    const q = await TrackPlayer.getQueue();
+    TrackPlayer.add([track(2), track(3)]);
+    const q = TrackPlayer.getQueue();
     expect(q).toHaveLength(3);
   });
 
   it('remove removes a track by index', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2), track(3)]);
-    await TrackPlayer.remove([1]);
-    const q = await TrackPlayer.getQueue();
+    TrackPlayer.remove([1]);
+    const q = TrackPlayer.getQueue();
     expect(q).toHaveLength(2);
     expect(q[1]?.title).toBe('Track 3');
   });
@@ -170,7 +170,7 @@ describe('add / remove / getQueue / getTrack', () => {
   it('getTrack returns the track at the given index', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
-    const t = await TrackPlayer.getTrack(1);
+    const t = TrackPlayer.getTrack(1);
     expect(t?.title).toBe('Track 2');
   });
 });
@@ -185,7 +185,7 @@ describe('play / pause', () => {
     await setup();
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -194,7 +194,7 @@ describe('play / pause', () => {
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
     await TrackPlayer.pause();
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Paused);
   });
 
@@ -204,7 +204,7 @@ describe('play / pause', () => {
     await TrackPlayer.play();
     await TrackPlayer.pause();
     await TrackPlayer.play();
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -216,7 +216,7 @@ describe('play / pause', () => {
     clearCreatedStreamers();
     await TrackPlayer.play();
     expect(getCreatedStreamers()).toHaveLength(1);
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -251,7 +251,7 @@ describe('stop / reset', () => {
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
     await TrackPlayer.stop();
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Stopped);
     expect(PlaybackNotificationManager.hide).toHaveBeenCalled();
   });
@@ -273,7 +273,7 @@ describe('stop / reset', () => {
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
     await TrackPlayer.reset();
-    const q = await TrackPlayer.getQueue();
+    const q = TrackPlayer.getQueue();
     expect(q).toHaveLength(0);
   });
 
@@ -300,9 +300,9 @@ describe('skipToNext', () => {
     await TrackPlayer.setQueue([track(1), track(2), track(3)]);
     await TrackPlayer.play();
     await TrackPlayer.skipToNext();
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -325,7 +325,7 @@ describe('skipToNext', () => {
     clearCreatedStreamers();
     await TrackPlayer.skipToNext();
     expect(getCreatedStreamers()).toHaveLength(0);
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 1');
   });
 });
@@ -337,7 +337,7 @@ describe('skipToPrevious', () => {
     await TrackPlayer.play();
     await TrackPlayer.skipToNext(); // now on Track 2
     await TrackPlayer.skipToPrevious();
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 1');
   });
 
@@ -351,7 +351,7 @@ describe('skipToPrevious', () => {
     clearCreatedStreamers();
     await TrackPlayer.skipToPrevious();
     // Should not have loaded a new track — just seeked to 0
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
   });
 
@@ -362,7 +362,7 @@ describe('skipToPrevious', () => {
     // position is 0, at first track — skipToPrevious should restart
     clearCreatedStreamers();
     await TrackPlayer.skipToPrevious();
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 1');
   });
 });
@@ -371,13 +371,13 @@ describe('skipToPrevious', () => {
 // seekTo / getPosition / getProgress
 // ---------------------------------------------------------------------------
 
-describe('seekTo / getPosition / getProgress', () => {
+describe('seekTo / getPlaybackState / getProgress', () => {
   it('seekTo updates position and updates the notification', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1, 120)]);
     await TrackPlayer.play();
     await TrackPlayer.seekTo(45);
-    const pos = await TrackPlayer.getPosition();
+    const { position: pos } = await TrackPlayer.getPlaybackState();
     expect(pos).toBeCloseTo(45, 4);
     expect(PlaybackNotificationManager.show).toHaveBeenLastCalledWith(
       expect.objectContaining({ elapsedTime: 45 })
@@ -388,7 +388,7 @@ describe('seekTo / getPosition / getProgress', () => {
     await setup();
     await TrackPlayer.setQueue([track(1, 180)]);
     await TrackPlayer.play();
-    const prog = await TrackPlayer.getProgress();
+    const prog = TrackPlayer.getProgress();
     expect(prog.duration).toBe(180);
     expect(prog.position).toBeCloseTo(0, 4);
   });
@@ -410,9 +410,9 @@ describe('auto-advance on track end', () => {
     await new Promise(r => setImmediate(r));
     await new Promise(r => setImmediate(r));
 
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
   });
 
@@ -443,9 +443,9 @@ describe('auto-advance on track end', () => {
     await new Promise(r => setImmediate(r));
     await new Promise(r => setImmediate(r));
 
-    const active = await TrackPlayer.getActiveTrack();
+    const active = TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 2');
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = TrackPlayer.getPlaybackState();
     expect(state).toBe(State.Playing);
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({ index: 1 })
@@ -484,7 +484,7 @@ describe('updateMetadataForTrack', () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.updateMetadataForTrack(1, { title: 'Patched' });
-    const t = await TrackPlayer.getTrack(1);
+    const t = TrackPlayer.getTrack(1);
     expect(t?.title).toBe('Patched');
   });
 
@@ -539,7 +539,7 @@ describe('updateNowPlayingMetadata', () => {
     await TrackPlayer.setQueue([track(1)]);
     await TrackPlayer.play();
     await TrackPlayer.updateNowPlayingMetadata({ title: 'Override' });
-    const stored = await TrackPlayer.getActiveTrack();
+    const stored = TrackPlayer.getActiveTrack();
     expect(stored?.title).toBe('Track 1'); // original unchanged
   });
 
@@ -560,7 +560,7 @@ describe('getActiveTrackIndex', () => {
   it('returns 0 for the first track', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
-    expect(await TrackPlayer.getActiveTrackIndex()).toBe(0);
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(0);
   });
 
   it('updates after skipToNext', async () => {
@@ -568,6 +568,6 @@ describe('getActiveTrackIndex', () => {
     await TrackPlayer.setQueue([track(1), track(2), track(3)]);
     await TrackPlayer.play();
     await TrackPlayer.skipToNext();
-    expect(await TrackPlayer.getActiveTrackIndex()).toBe(1);
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(1);
   });
 });
