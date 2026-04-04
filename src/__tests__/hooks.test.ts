@@ -209,9 +209,9 @@ describe('useProgress — polling interval', () => {
     _registerProgressGetters(getPosition, getDuration, getState);
 
     // Simulate the interval the hook sets up
-    let position = 10;
+    let _position = 10;
     const interval = setInterval(() => {
-      position = getPosition();
+      _position = getPosition();
     }, 1000);
 
     // Simulate playing state
