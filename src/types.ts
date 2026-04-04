@@ -50,6 +50,18 @@ export enum Capability {
   SeekTo         = 'seek-to',
 }
 
+/**
+ * Payload emitted with Event.PlaybackState — only the state value.
+ * Position and duration are not included in the event; use getPlaybackState() for a full snapshot.
+ */
+export interface PlaybackStateEvent {
+  state: State;
+}
+
+/**
+ * Full playback snapshot returned by getPlaybackState().
+ * Includes state, current position, and track duration.
+ */
 export interface PlaybackState {
   state: State;
   position: number;
@@ -99,7 +111,7 @@ export interface RemoteSeekEvent {
  * a fully-typed handler without any casts.
  */
 export interface EventPayloadMap {
-  [Event.PlaybackState]: PlaybackState;
+  [Event.PlaybackState]: PlaybackStateEvent;
   [Event.PlaybackError]: PlaybackError;
   [Event.PlaybackActiveTrackChanged]: ActiveTrackChangedEvent;
   [Event.RemotePlay]: void;
