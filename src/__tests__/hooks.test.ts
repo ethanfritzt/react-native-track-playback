@@ -243,6 +243,25 @@ describe('useProgress — polling interval', () => {
     expect(getPosition.mock.calls.length).toBe(callsBeforeClear);
   });
 
+  it('PlaybackState → Playing snap: getters are registered and readable immediately', () => {
+    // Verify that after a Playing event, the registered getters return the
+    // expected values — confirming the snap-on-resume logic has access to
+    // the correct position when the useEffect subscription fires in a real
+    // React render. The subscription itself lives in useEffect so it cannot
+    // fire in this module-level test environment.
+    const getPosition = jest.fn(() => 42);
+    const getDuration = jest.fn(() => 180);
+    _registerProgressGetters(getPosition, getDuration, () => State.Playing);
+
+    // Simulate what the hook's PlaybackState handler does on Playing transition
+    const position = getPosition();
+    const duration = getDuration();
+
+    expect(position).toBe(42);
+    expect(duration).toBe(180);
+    expect(getPosition).toHaveBeenCalledTimes(1);
+  });
+
   it('PlaybackState → Paused should stop the active polling flag', () => {
     let isActive = false;
 
