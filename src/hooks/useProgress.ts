@@ -5,9 +5,6 @@ import { emitter } from '../EventEmitter';
 /**
  * Polls position/duration from the engine on an interval.
  * Returns { position, duration } — all in seconds.
- *
- * The getters are registered by TrackPlayer.setupPlayer() via
- * _registerProgressGetters() to avoid circular imports.
  */
 
 // Module-level getter references, populated by TrackPlayer
@@ -29,7 +26,7 @@ let _isSetup = false;
 export function _registerProgressGetters(
   getPosition: () => number,
   getDuration: () => number,
-  getState: () => State,
+  getState: () => State
 ): void {
   _getPosition = getPosition;
   _getDuration = getDuration;
@@ -109,10 +106,8 @@ export function useProgress(updateInterval = 1000): Progress {
       // Use the functional form of setState and return the previous reference
       // unchanged when the values haven't moved. This eliminates re-renders when
       // the engine reports the same position twice in a row (e.g. end of track).
-      setProgress(prev =>
-        prev.position === position && prev.duration === duration
-          ? prev
-          : { position, duration }
+      setProgress((prev) =>
+        prev.position === position && prev.duration === duration ? prev : { position, duration }
       );
     }, updateInterval);
 
@@ -121,4 +116,3 @@ export function useProgress(updateInterval = 1000): Progress {
 
   return progress;
 }
-
