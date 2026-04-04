@@ -176,12 +176,12 @@ const { position, duration } = useProgress(500);
 ```typescript
 enum State {
   None = 'none',
-  Ready = 'ready',
+  Loading = 'loading',
+  Buffering = 'buffering',
   Playing = 'playing',
   Paused = 'paused',
   Stopped = 'stopped',
   Ended = 'ended',
-  Loading = 'loading',
   Error = 'error',
 }
 ```

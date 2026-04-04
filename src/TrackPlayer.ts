@@ -238,9 +238,9 @@ const TrackPlayer = {
       return;
     }
 
-    // For all other states (Stopped, None, Ended, Error, Loading, Buffering, Ready):
+    // For all other states (Stopped, None, Ended, Error, Loading, Buffering):
     // cancel any in-flight load and start the active track from the beginning.
-    // Loading/Buffering/Ready can occur if setQueue() was called while a previous
+    // Loading/Buffering can occur if setQueue() was called while a previous
     // load was in-flight — engine.loadAndPlay() increments loadGeneration, which
     // cancels the stale load before starting fresh.
     const track = queue.getActiveTrack();

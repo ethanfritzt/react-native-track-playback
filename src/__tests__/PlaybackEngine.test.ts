@@ -192,7 +192,7 @@ describe('loadAndPlay (buffer fallback path)', () => {
     expect(decodeAudioData).toHaveBeenCalledWith(track.url);
   });
 
-  it('transitions through Buffering → Ready → Playing', async () => {
+  it('transitions through Buffering → Playing', async () => {
     const engine = makeEngine();
     // const states: State[] = []; // removed — unused
     // Patch setState indirectly by observing state at each promise tick
