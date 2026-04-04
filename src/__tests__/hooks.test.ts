@@ -21,6 +21,7 @@ import {
   useProgress,
 } from '../hooks/useProgress';
 import { usePlaybackState } from '../hooks/usePlaybackState';
+import { _registerActiveTrackGetter } from '../hooks/useActiveTrack';
 
 // ---------------------------------------------------------------------------
 // Reset
@@ -268,6 +269,86 @@ describe('useProgress — polling interval', () => {
     emitter.emit(Event.PlaybackState, { state: State.Playing });
     emitter.emit(Event.PlaybackState, { state: State.Stopped });
     expect(isActive).toBe(false);
+
+    unsub();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useActiveTrack
+// ---------------------------------------------------------------------------
+
+describe('useActiveTrack — _registerActiveTrackGetter', () => {
+  it('accepts a getter function without throwing', () => {
+    expect(() =>
+      _registerActiveTrackGetter(() => null),
+    ).not.toThrow();
+  });
+
+  it('accepts a getter that returns a track', () => {
+    const track = { id: '1', url: 'https://example.com/a.mp3', title: 'Track A' };
+    expect(() =>
+      _registerActiveTrackGetter(() => track),
+    ).not.toThrow();
+  });
+});
+
+describe('useActiveTrack — PlaybackActiveTrackChanged subscription', () => {
+  it('emits updated track via PlaybackActiveTrackChanged', () => {
+    const track = { id: '1', url: 'https://example.com/a.mp3', title: 'Track A' };
+    const received: Array<{ track: typeof track | null }> = [];
+
+    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload: any) => {
+      received.push({ track: payload.track ?? null });
+    });
+
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track,
+      index: 0,
+      lastTrack: null,
+      lastIndex: -1,
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]!.track?.title).toBe('Track A');
+
+    unsub();
+  });
+
+  it('emits null track when queue is cleared', () => {
+    const received: Array<{ track: null }> = [];
+
+    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload: any) => {
+      received.push({ track: payload.track ?? null });
+    });
+
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: null,
+      index: -1,
+      lastTrack: { url: 'https://example.com/a.mp3' },
+      lastIndex: 0,
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]!.track).toBeNull();
+
+    unsub();
+  });
+
+  it('tracks multiple successive track changes in order', () => {
+    const trackA = { id: '1', url: 'https://example.com/a.mp3', title: 'A' };
+    const trackB = { id: '2', url: 'https://example.com/b.mp3', title: 'B' };
+    const titles: (string | null)[] = [];
+
+    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload: any) => {
+      titles.push(payload.track?.title ?? null);
+    });
+
+    emitter.emit(Event.PlaybackActiveTrackChanged, { track: trackA, index: 0, lastTrack: null, lastIndex: -1 });
+    emitter.emit(Event.PlaybackActiveTrackChanged, { track: trackB, index: 1, lastTrack: trackA, lastIndex: 0 });
+    emitter.emit(Event.PlaybackActiveTrackChanged, { track: null, index: -1, lastTrack: trackB, lastIndex: 1 });
+
+    expect(titles).toEqual(['A', 'B', null]);
 
     unsub();
   });

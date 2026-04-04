@@ -15,6 +15,7 @@ import { PlaybackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
+import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
 import { _registerStateGetter } from './hooks/usePlaybackState';
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,9 @@ _registerProgressGetters(
   () => engine.getState()
 );
 _registerStateGetter(() => engine.getState());
+
+// Wire active-track getter into useActiveTrack without creating circular imports
+_registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 engine.onTrackEnded(async () => {
@@ -90,10 +94,6 @@ engine.onTrackEnded(async () => {
 // ---------------------------------------------------------------------------
 
 const TrackPlayer = {
-  // --------------------------------------------------------------------------
-  // Setup
-  // --------------------------------------------------------------------------
-
   /**
    * Tear down the player completely — stops playback, clears the queue, destroys
    * the native AudioContext, and removes notification subscriptions.
