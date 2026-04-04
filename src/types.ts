@@ -52,6 +52,8 @@ export enum Capability {
 
 export interface PlaybackState {
   state: State;
+  position: number;
+  duration: number;
 }
 
 export interface Progress {
