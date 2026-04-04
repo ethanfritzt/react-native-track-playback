@@ -1,11 +1,11 @@
 /**
- * react-native-track-playback
+ * @ethanfritzt/react-native-playback
  *
  * A React Native audio playback library built on react-native-audio-api.
  *
  * Usage:
  *   import TrackPlayer, { State, Event, Capability, usePlaybackState, useProgress, useActiveTrack }
- *     from 'react-native-track-playback';
+ *     from '@ethanfritzt/react-native-playback';
  */
 
 // Default export — the static TrackPlayer API
