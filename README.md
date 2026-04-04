@@ -1,60 +1,66 @@
-# react-native-track-playback
+# @ethanfritzt/react-native-playback
 
-A React Native audio playback library built on [react-native-audio-api](https://github.com/software-mansion/react-native-audio-api).
+Queue-based audio playback for React Native, built on [`react-native-audio-api`](https://github.com/software-mansion/react-native-audio-api).
 
-## Overview
+- Lock screen & notification controls (iOS + Android)
+- Background audio
+- HTTP streaming via FFmpeg (fast start, ~1–2 s)
+- Fully typed API with React hooks
+- Expo config plugin included
 
-This library provides queue-based audio playback with lock screen and notification controls, leveraging `react-native-audio-api` for audio output.
-
-**Key Features:**
-
-- Queue management with shuffle support
-- Playback controls (play, pause, seek, skip)
-- Lock screen and notification controls
-- Background audio playback
-- React hooks for state management
-- Streaming support via FFmpeg for fast playback start (~1-2 seconds)
+---
 
 ## Installation
 
 ```bash
-npm install react-native-track-playback react-native-audio-api
+npm install @ethanfritzt/react-native-playback react-native-audio-api
 # or
-yarn add react-native-track-playback react-native-audio-api
+yarn add @ethanfritzt/react-native-playback react-native-audio-api
 ```
 
-### Peer Dependencies
+### Peer dependencies
 
 | Package | Version |
-|---------|---------|
-| `react` | >= 18.0.0 |
-| `react-native` | >= 0.73.0 |
-| `react-native-audio-api` | >= 0.11.0 |
+|---|---|
+| `react` | ≥ 18.0.0 |
+| `react-native` | ≥ 0.73.0 |
+| `react-native-audio-api` | ≥ 0.11.0 |
 
-## Expo Setup
+> **Streaming support** requires the FFmpeg-enabled build of `react-native-audio-api`.
+> Without FFmpeg the library falls back to full in-memory decoding before playback starts.
 
-If you're using Expo, add the config plugin to your `app.json` or `app.config.js`:
+---
+
+## Expo setup
+
+Add the config plugin to `app.json` or `app.config.js`:
 
 ```json
 {
   "expo": {
-    "plugins": ["react-native-track-playback"]
+    "plugins": [
+      ["@ethanfritzt/react-native-playback", {
+        "iosBackgroundMode": true,
+        "androidForegroundService": true
+      }]
+    ]
   }
 }
 ```
 
 The plugin automatically:
 - Enables iOS background audio mode
-- Enables Android foreground service
+- Sets up an Android foreground service for background playback
 - Adds required Android permissions
-- Ensures FFmpeg is enabled for streaming support
+- Ensures the FFmpeg build of `react-native-audio-api` is used
 
-## Quick Start
+---
 
-```typescript
-import TrackPlayer, { State, Event } from 'react-native-track-playback';
+## Quick start
 
-// Set up the queue
+```ts
+import TrackPlayer, { Event } from '@ethanfritzt/react-native-playback';
+
 await TrackPlayer.setQueue([
   {
     id: '1',
@@ -62,6 +68,7 @@ await TrackPlayer.setQueue([
     title: 'Track 1',
     artist: 'Artist Name',
     artwork: 'https://example.com/artwork.jpg',
+    duration: 210,
   },
   {
     id: '2',
@@ -71,173 +78,187 @@ await TrackPlayer.setQueue([
   },
 ]);
 
-// Start playback
 await TrackPlayer.play();
 
-// Listen for events
-TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-  console.log('Playback state:', event.state);
-});
-```
-
-### Using React Hooks
-
-```typescript
-import { usePlaybackState, useProgress } from 'react-native-track-playback';
-
-function Player() {
-  const playbackState = usePlaybackState();
-  const { position, duration } = useProgress(1000); // Update every 1000ms
-
-  return (
-    <View>
-      <Text>State: {playbackState}</Text>
-      <Text>Progress: {position} / {duration}</Text>
-    </View>
-  );
-}
-```
-
-## API Reference
-
-### Queue Management
-
-| Method | Description |
-|--------|-------------|
-| `setQueue(tracks)` | Replace the current queue with new tracks |
-| `add(tracks, insertBeforeIndex?)` | Add tracks to the queue |
-| `remove(indices)` | Remove tracks at specified indices |
-| `move(fromIndex, toIndex)` | Move a track within the queue |
-| `getQueue()` | Get the current queue |
-| `getActiveTrack()` | Get the currently active track |
-| `getActiveTrackIndex()` | Get the index of the active track |
-| `updateMetadataForTrack(index, metadata)` | Update metadata for a track |
-| `shuffle()` | Shuffle the queue (Fisher-Yates algorithm) |
-
-### Playback Control
-
-| Method | Description |
-|--------|-------------|
-| `play()` | Start or resume playback |
-| `pause()` | Pause playback |
-| `stop()` | Stop playback and reset position |
-| `reset()` | Stop playback and clear the queue |
-| `seekTo(position)` | Seek to a position in seconds |
-| `skip(index)` | Skip to a specific track index |
-| `skipToNext()` | Skip to the next track |
-| `skipToPrevious()` | Skip to previous track (or restart if > 3 seconds in) |
-| `getPlaybackState()` | Get the current playback state |
-| `getProgress()` | Get current position and duration |
-
-### Events
-
-| Event | Description |
-|-------|-------------|
-| `Event.PlaybackState` | Fired when playback state changes |
-| `Event.PlaybackActiveTrackChanged` | Fired when the active track changes |
-| `Event.RemotePlay` | Fired when play is triggered from lock screen/notification |
-| `Event.RemotePause` | Fired when pause is triggered from lock screen/notification |
-| `Event.RemoteNext` | Fired when next is triggered from lock screen/notification |
-| `Event.RemotePrevious` | Fired when previous is triggered from lock screen/notification |
-| `Event.RemoteSeek` | Fired when seek is triggered from lock screen/notification |
-| `Event.PlaybackError` | Fired when a playback error occurs |
-
-```typescript
-// Subscribe to events
-const subscription = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-  console.log('State:', event.state);
+// Listen to events
+const sub = TrackPlayer.addEventListener(Event.PlaybackState, (e) => {
+  console.log('state:', e.state);
 });
 
 // Unsubscribe when done
-subscription.remove();
+sub.remove();
 ```
 
-### React Hooks
+---
 
-#### `usePlaybackState()`
+## API reference
 
-Returns the current playback state. Re-renders when the state changes.
+### Queue management
 
-```typescript
-const state = usePlaybackState();
-// Returns: State.None | State.Playing | State.Paused | State.Stopped | ...
+| Method | Returns | Description |
+|---|---|---|
+| `setQueue(tracks)` | `Promise<void>` | Replace the queue and reset position |
+| `add(tracks)` | `void` | Append tracks to the end of the queue |
+| `remove(indexOrIndices)` | `void` | Remove track(s) by index or `Track` object |
+| `getQueue()` | `readonly Track[]` | Current queue |
+| `getTrack(index)` | `Track \| undefined` | Track at a specific index |
+| `getActiveTrack()` | `Track \| undefined` | Currently active track |
+| `getActiveTrackIndex()` | `number` | Index of the active track (`-1` if none) |
+| `updateMetadataForTrack(index, metadata)` | `Promise<void>` | Patch metadata on a queued track in-place |
+| `updateNowPlayingMetadata(metadata)` | `Promise<void>` | Update lock screen / notification without mutating the queue |
+
+### Playback control
+
+| Method | Returns | Description |
+|---|---|---|
+| `play()` | `Promise<void>` | Start or resume playback |
+| `pause()` | `Promise<void>` | Pause playback |
+| `stop()` | `Promise<void>` | Stop playback and reset position |
+| `reset()` | `Promise<void>` | Stop playback and clear the queue |
+| `seekTo(seconds)` | `Promise<void>` | Seek to position in seconds |
+| `skipToNext()` | `Promise<void>` | Skip to the next track |
+| `skipToPrevious(restartThreshold?)` | `Promise<void>` | Go to previous track, or restart if past threshold (default: 3 s) |
+| `setVolume(volume)` | `Promise<void>` | Set playback volume, clamped to `[0, 1]` |
+
+### State & progress
+
+| Method | Returns | Description |
+|---|---|---|
+| `getPlaybackState()` | `PlaybackState` | Current state object `{ state: State }` |
+| `getState()` | `State` | Current `State` enum value |
+| `getPosition()` | `number` | Current position in seconds |
+| `getDuration()` | `number` | Duration of the active track in seconds |
+| `getProgress()` | `Progress` | `{ position, duration }` |
+
+### Events
+
+| Event | Payload type | Description |
+|---|---|---|
+| `Event.PlaybackState` | `PlaybackState` | Fired on every state change |
+| `Event.PlaybackError` | `PlaybackError` | Fired when a playback error occurs |
+| `Event.PlaybackActiveTrackChanged` | `ActiveTrackChangedEvent` | Fired when the active track changes |
+| `Event.RemotePlay` | `void` | Play pressed on lock screen / notification |
+| `Event.RemotePause` | `void` | Pause pressed on lock screen / notification |
+| `Event.RemoteNext` | `void` | Next pressed on lock screen / notification |
+| `Event.RemotePrevious` | `void` | Previous pressed on lock screen / notification |
+| `Event.RemoteSeek` | `RemoteSeekEvent` | Seek triggered from lock screen / notification |
+
+```ts
+TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (e) => {
+  // e is fully typed as ActiveTrackChangedEvent — no casts needed
+  console.log('now playing:', e.track?.title);
+});
 ```
 
-#### `useProgress(updateInterval?)`
+### Notification controls
 
-Returns the current playback progress. Polls at the specified interval (default: 1000ms).
+```ts
+import { Capability } from '@ethanfritzt/react-native-playback';
 
-```typescript
-const { position, duration } = useProgress(500);
+await TrackPlayer.updateOptions({
+  capabilities: [
+    Capability.Play,
+    Capability.Pause,
+    Capability.SkipToNext,
+    Capability.SkipToPrevious,
+    Capability.SeekTo,
+  ],
+});
 ```
 
-### Playback States
+---
 
-```typescript
-enum State {
-  None = 'none',
-  Ready = 'ready',
-  Playing = 'playing',
-  Paused = 'paused',
-  Stopped = 'stopped',
-  Ended = 'ended',
-  Loading = 'loading',
-  Error = 'error',
+## React hooks
+
+### `usePlaybackState()`
+
+Returns `{ state: State | undefined }`. Re-renders on every state change.
+
+```tsx
+import { usePlaybackState, State } from '@ethanfritzt/react-native-playback';
+
+function PlayButton() {
+  const { state } = usePlaybackState();
+  const isPlaying = state === State.Playing;
+  return <Button title={isPlaying ? 'Pause' : 'Play'} onPress={...} />;
 }
 ```
 
-## Contributing
+### `useProgress(updateInterval?)`
 
-Contributions are welcome! Here's how to get started:
+Returns `{ position, duration }` in seconds. Polls at `updateInterval` ms (default: 1000). Snaps position immediately on resume.
 
-### Development Setup
+```tsx
+import { useProgress } from '@ethanfritzt/react-native-playback';
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/react-native-track-playback.git
-   cd react-native-track-playback
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start development mode:
-   ```bash
-   npm run dev
-   ```
-
-### Available Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run build` | Build the library (CJS + ESM + types) |
-| `npm run dev` | Watch mode for development |
-| `npm run typecheck` | Run TypeScript type checking |
-| `npm test` | Run the test suite |
-| `npm run test:watch` | Run tests in watch mode |
-
-### Running Tests
-
-```bash
-npm test
+function ProgressBar() {
+  const { position, duration } = useProgress(500);
+  return <Slider value={position} maximumValue={duration} />;
+}
 ```
 
-Tests use Jest with a comprehensive mock of `react-native-audio-api`. The test suite covers:
-- Queue management operations
-- Playback state transitions
-- Event emission and handling
-- Hook behavior
+### `useActiveTrack()`
 
-### Pull Request Guidelines
+Returns the active `Track | null`. Re-renders when the track changes. Initializes synchronously on mount — no null flash mid-playback.
 
-1. Fork the repository and create a feature branch
-2. Make your changes with clear, descriptive commits
-3. Add tests for new functionality
-4. Ensure all tests pass (`npm test`)
-5. Ensure TypeScript compiles (`npm run typecheck`)
-6. Submit a pull request with a clear description of your changes
+```tsx
+import { useActiveTrack } from '@ethanfritzt/react-native-playback';
+
+function NowPlaying() {
+  const track = useActiveTrack();
+  return <Text>{track?.title ?? 'Nothing playing'}</Text>;
+}
+```
+
+---
+
+## Playback states
+
+```ts
+enum State {
+  None      = 'none',      // Initial / destroyed
+  Loading   = 'loading',   // Fetching / decoding audio
+  Buffering = 'buffering', // Streaming, waiting for data
+  Playing   = 'playing',
+  Paused    = 'paused',
+  Stopped   = 'stopped',
+  Ended     = 'ended',     // Track finished naturally
+  Error     = 'error',
+}
+```
+
+---
+
+## Track shape
+
+```ts
+interface Track {
+  id?: string;
+  url: string;        // required
+  title?: string;
+  artist?: string;
+  album?: string;
+  genre?: string;
+  artwork?: string;   // URL or local path
+  duration?: number;  // seconds; used by notification controls
+}
+```
+
+---
+
+## Contributing
+
+```bash
+git clone https://github.com/ethanfritzt/react-native-track-playback.git
+cd react-native-track-playback
+npm install
+npm test
+npm run typecheck
+```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the async/sync API policy and PR guidelines.
+
+---
 
 ## License
 
