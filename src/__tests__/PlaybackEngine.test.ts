@@ -161,7 +161,7 @@ describe('loadAndPlay (streaming path)', () => {
   });
 
   it('sets State.Error and re-throws when initialize returns false', async () => {
-    const engine = makeEngine();
+    // const engine = makeEngine();
     // Make the next streamer's initialize fail
     // Temporarily patch via the probe-created streamer list
     // by replacing initialize on the factory result
@@ -194,7 +194,7 @@ describe('loadAndPlay (buffer fallback path)', () => {
 
   it('transitions through Buffering → Ready → Playing', async () => {
     const engine = makeEngine();
-    const states: State[] = [];
+    // const states: State[] = []; // removed — unused
     // Patch setState indirectly by observing state at each promise tick
     // (simpler: just assert final state and that decodeAudioData was awaited)
     await engine.loadAndPlay(makeTrack());

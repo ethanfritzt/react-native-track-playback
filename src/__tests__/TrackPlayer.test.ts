@@ -371,7 +371,7 @@ describe('seekTo / getPlaybackState / getProgress', () => {
     await TrackPlayer.setQueue([track(1, 120)]);
     await TrackPlayer.play();
     await TrackPlayer.seekTo(45);
-    const { position: pos } = await TrackPlayer.getPlaybackState();
+    const { position: pos } = TrackPlayer.getPlaybackState();
     expect(pos).toBeCloseTo(45, 4);
     expect(PlaybackNotificationManager.show).toHaveBeenLastCalledWith(
       expect.objectContaining({ elapsedTime: 45 })

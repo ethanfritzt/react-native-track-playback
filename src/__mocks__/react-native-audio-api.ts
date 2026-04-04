@@ -155,6 +155,7 @@ export class MockAudioContext {
   readonly _gainNode = new MockGainNode();
 
   constructor() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     _lastContext = this;
   }
 
@@ -180,17 +181,17 @@ export class MockAudioContext {
     return node;
   }
 
-  async suspend(): Promise<boolean> {
+  suspend(): boolean {
     this.state = 'suspended';
     return true;
   }
 
-  async resume(): Promise<boolean> {
+  resume(): boolean {
     this.state = 'running';
     return true;
   }
 
-  async close(): Promise<void> {
+  close(): void {
     this.state = 'closed';
   }
 }
@@ -203,7 +204,7 @@ export { MockAudioContext as AudioContext };
 // ---------------------------------------------------------------------------
 
 export const decodeAudioData = jest.fn(
-  async (_url: string): Promise<MockAudioBuffer> => {
+  (_url: string): MockAudioBuffer => {
     return new MockAudioBuffer(_nextDecodeDuration);
   }
 );

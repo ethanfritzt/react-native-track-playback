@@ -67,7 +67,7 @@ export function useProgress(updateInterval = 1000): Progress {
   // UI reflects the correct value without waiting up to updateInterval ms for
   // the next interval tick (fixes stale position on resume from pause).
   useEffect(() => {
-    const unsub = emitter.on(Event.PlaybackState, (payload) => {
+    const unsub = emitter.on(Event.PlaybackState, (payload: unknown) => {
       const { state } = payload as { state: State };
       const isPlaying = state === State.Playing;
       isActiveRef.current = isPlaying;
@@ -88,7 +88,7 @@ export function useProgress(updateInterval = 1000): Progress {
   // track metadata rather than waiting for the next interval tick. This ensures
   // the miniplayer shows the correct duration as soon as a new track starts.
   useEffect(() => {
-    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload) => {
+    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload: unknown) => {
       const { track } = payload as ActiveTrackChangedEvent;
       if (track) {
         // Prefer metadata duration (available immediately); fall back to the
