@@ -73,27 +73,6 @@ const TrackPlayer = {
   // Setup
   // --------------------------------------------------------------------------
 
-  /**
-   * Initialize the audio engine.
-   *
-   * @deprecated The player now auto-initializes on first use (#53). Calling
-   * this method is no longer required and will be removed in a future major
-   * version. You can safely remove all `setupPlayer()` calls from your app.
-   *
-   * This method is idempotent — calling it multiple times has no effect beyond
-   * the first call.
-   */
-  async setupPlayer(): Promise<void> {
-    // engine.init() is idempotent: if (this.context) return;
-    engine.init();
-
-    // Wire engine getters into the useProgress hook without creating circular imports
-    _registerProgressGetters(
-      () => engine.getPosition(),
-      () => engine.getDuration(),
-      () => engine.getState(),
-    );
-  },
 
   /**
    * Tear down the player completely — stops playback, clears the queue, destroys
