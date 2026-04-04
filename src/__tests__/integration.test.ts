@@ -48,7 +48,6 @@ function track(n: number, duration = 60) {
 }
 
 async function setup() {
-  await TrackPlayer.setupPlayer();
   await TrackPlayer.updateOptions({ capabilities: [] });
 }
 
