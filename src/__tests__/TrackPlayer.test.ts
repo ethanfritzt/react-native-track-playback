@@ -36,7 +36,6 @@ function track(n: number, duration = 30) {
 }
 
 async function setup() {
-  await TrackPlayer.setupPlayer();
   await TrackPlayer.updateOptions({
     capabilities: [],
   });
@@ -75,8 +74,7 @@ describe('setupPlayer (deprecated)', () => {
 
 describe('updateOptions', () => {
   it('calls PlaybackNotificationManager.enableControl for each known control', async () => {
-    await TrackPlayer.setupPlayer();
-    await TrackPlayer.updateOptions({ capabilities: [] });
+      await TrackPlayer.updateOptions({ capabilities: [] });
     // 7 controls total (play, pause, next, previous, skipForward, skipBackward, seekTo)
     expect(PlaybackNotificationManager.enableControl).toHaveBeenCalledTimes(7);
   });
