@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Breaking Changes
+- Renamed `Capability` enum to `Control`; values now match `react-native-audio-api`'s `PlaybackControlName` exactly (`nextTrack`, `previousTrack`, `skipForward`, `skipBackward`, `seekTo`). `Stop` was removed (no RNAP equivalent); `SkipForward` and `SkipBackward` were added. `UpdateOptions.capabilities` renamed to `UpdateOptions.controls`.
+
 ## [0.1.0] — 2026-04-04
 
 Initial release of `react-native-track-playback`.
