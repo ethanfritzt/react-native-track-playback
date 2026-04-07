@@ -37,6 +37,8 @@ export enum Event {
   RemoteNext                 = 'remote-next',
   RemotePrevious             = 'remote-previous',
   RemoteSeek                 = 'remote-seek',
+  /** @internal Emitted by PlaybackEngine when a track ends naturally. */
+  TrackEnded                 = 'internal-track-ended',
 }
 
 export enum Capability {
@@ -113,6 +115,7 @@ export interface EventPayloadMap {
   [Event.RemoteNext]: void;
   [Event.RemotePrevious]: void;
   [Event.RemoteSeek]: RemoteSeekEvent;
+  [Event.TrackEnded]: void;
 }
 
 /** Returned by addEventListener — call remove() to unsubscribe. */
