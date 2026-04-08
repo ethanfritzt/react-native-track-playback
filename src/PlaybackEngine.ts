@@ -359,7 +359,9 @@ export class PlaybackEngine {
       streamer.start(0);
 
       this.playStartContextTime = this.context!.currentTime;
-      this.playStartOffset = seconds;
+      // Use Math.floor to match the integer offset sent in the timeOffset URL param.
+      // Without this, the position formula drifts by up to 1s after a streamer seek.
+      this.playStartOffset = Math.floor(seconds);
       this.streamerNode = streamer;
       this.startStreamerEndedPoller(streamer);
     } else {
@@ -575,3 +577,4 @@ export class PlaybackEngine {
     }
   }
 }
+
