@@ -6,7 +6,7 @@ import {
   type AudioBuffer,
   type StreamerNode,
 } from 'react-native-audio-api';
-import { Event, State, Track, PlaybackError } from './types';
+import { Event, State, Track } from './types';
 import { emitter } from './EventEmitter';
 
 /**
@@ -82,7 +82,7 @@ export class PlaybackEngine {
   private _state: State = State.None;
 
   /** Called by TrackPlayer when a track ends naturally (not via stop/skip). */
-  private endedCallback: (() => void) | null = null;
+
 
   /**
    * True when the AudioContext's createStreamer() returned a non-null node,
@@ -429,14 +429,6 @@ export class PlaybackEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Callbacks
-  // ---------------------------------------------------------------------------
-
-  onTrackEnded(cb: () => void): void {
-    this.endedCallback = cb;
-  }
-
-  // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
@@ -460,9 +452,7 @@ export class PlaybackEngine {
         this.clearStreamerEndedPoller();
         this.setState(State.Ended);
         this.streamerNode = null;
-        Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, new PlaybackError(err.message, -1));
-        });
+        emitter.emit(Event.TrackEnded);
       }
     }, 250);
   }
@@ -494,9 +484,7 @@ export class PlaybackEngine {
       if (this._state === State.Playing) {
         this.setState(State.Ended);
         this.sourceNode = null;
-        Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, new PlaybackError(err.message, -1));
-        });
+        emitter.emit(Event.TrackEnded);
       }
     };
 

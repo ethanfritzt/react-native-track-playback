@@ -39,7 +39,7 @@ _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-engine.onTrackEnded(async () => {
+emitter.on(Event.TrackEnded, async () => {
   const lastTrack = queue.getActiveTrack() ?? null;
   const lastIndex = queue.getActiveIndex();
   const advanced = queue.skipToNext();

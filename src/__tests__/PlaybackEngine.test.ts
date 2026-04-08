@@ -1,5 +1,6 @@
 import { PlaybackEngine } from '../PlaybackEngine';
-import { State } from '../types';
+import { State, Event } from '../types';
+import { emitter } from '../EventEmitter';
 import {
   getLastAudioContext,
   getCreatedStreamers,
@@ -423,11 +424,11 @@ describe('seekTo (buffer fallback path)', () => {
 // Natural track end
 // ---------------------------------------------------------------------------
 
-describe('onTrackEnded callback', () => {
-  it('fires the callback when the streamer poller detects end', async () => {
+describe('TrackEnded event', () => {
+  it('emits TrackEnded when the streamer poller detects end', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
-    engine.onTrackEnded(cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack(1, 30));
     const ctx = getLastAudioContext()!;
@@ -436,12 +437,13 @@ describe('onTrackEnded callback', () => {
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(engine.getState()).toBe(State.Ended);
+    unsub();
   });
 
-  it('does NOT fire callback when stop() was called before poller fires', async () => {
+  it('does NOT emit TrackEnded when stop() was called before poller fires', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
-    engine.onTrackEnded(cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack(1, 30));
     await engine.stop(); // state → Stopped, poller cleared
@@ -450,13 +452,14 @@ describe('onTrackEnded callback', () => {
     jest.advanceTimersByTime(250);
 
     expect(cb).not.toHaveBeenCalled();
+    unsub();
   });
 
-  it('fires the callback when the buffer source ends naturally (buffer path)', async () => {
+  it('emits TrackEnded when the buffer source ends naturally (buffer path)', async () => {
     setStreamerAvailable(false);
     const engine = makeEngine();
     const cb = jest.fn();
-    engine.onTrackEnded(cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack());
     const sources = getCreatedSources();
@@ -465,6 +468,7 @@ describe('onTrackEnded callback', () => {
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(engine.getState()).toBe(State.Ended);
+    unsub();
   });
 });
 
