@@ -325,7 +325,7 @@ describe('skipToNext', () => {
 });
 
 describe('skipToPrevious', () => {
-  it('goes to the previous track when less than 3 seconds in', async () => {
+  it('goes to the previous track when less than 3 seconds in (default threshold)', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
@@ -335,7 +335,7 @@ describe('skipToPrevious', () => {
     expect(active?.title).toBe('Track 1');
   });
 
-  it('restarts the current track when more than 3 seconds in', async () => {
+  it('restarts the current track when more than 3 seconds in (default threshold)', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
     await TrackPlayer.play();
@@ -357,6 +357,31 @@ describe('skipToPrevious', () => {
     clearCreatedStreamers();
     await TrackPlayer.skipToPrevious();
     const active = TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 1');
+  });
+
+  it('always goes to previous when restartThreshold is 0', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    await TrackPlayer.skipToNext(); // on Track 2
+    getLastAudioContext()!.advanceTime(10); // well past default 3s
+    await TrackPlayer.skipToPrevious(0);
+    const active = await TrackPlayer.getActiveTrack();
+    expect(active?.title).toBe('Track 1');
+  });
+
+  it('uses a custom restartThreshold', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    await TrackPlayer.skipToNext(); // on Track 2
+    // Advance to 8 seconds — past default 3s but under custom 10s threshold
+    getLastAudioContext()!.advanceTime(8);
+    clearCreatedStreamers();
+    await TrackPlayer.skipToPrevious(10);
+    // Should have gone to previous track (position 8 < threshold 10)
+    const active = await TrackPlayer.getActiveTrack();
     expect(active?.title).toBe('Track 1');
   });
 });
