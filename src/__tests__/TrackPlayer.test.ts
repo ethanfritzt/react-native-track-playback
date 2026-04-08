@@ -37,7 +37,7 @@ function track(n: number, duration = 30) {
 
 async function setup() {
   await TrackPlayer.updateOptions({
-    capabilities: [],
+    controls: [],
   });
 }
 
@@ -58,7 +58,7 @@ afterEach(() => {
 
 describe('updateOptions', () => {
   it('calls PlaybackNotificationManager.enableControl for each known control', async () => {
-    await TrackPlayer.updateOptions({ capabilities: [] });
+    await TrackPlayer.updateOptions({ controls: [] });
     // 7 controls total (play, pause, next, previous, skipForward, skipBackward, seekTo)
     expect(PlaybackNotificationManager.enableControl).toHaveBeenCalledTimes(7);
   });

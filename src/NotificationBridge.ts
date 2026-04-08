@@ -35,7 +35,7 @@ export class NotificationBridge {
     // Only controls whose enabled/disabled state has changed since the last
     // setup() call are sent — this avoids redundant async work when
     // updateOptions() is called more than once (e.g. per-track control changes).
-    const allRNAPControls = ['play', 'pause', 'stop', 'nextTrack', 'previousTrack', 'skipForward', 'skipBackward', 'seekTo'] as const;
+    const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
     const changed = allRNAPControls.filter(control => {
       const isEnabled = (controls as string[]).includes(control);
       return this.appliedControls.get(control) !== isEnabled;
