@@ -428,7 +428,7 @@ describe('TrackEnded event', () => {
   it('emits TrackEnded when the streamer poller detects end', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
-    const sub = emitter.addEventListener(Event.TrackEnded, cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack(1, 30));
     const ctx = getLastAudioContext()!;
@@ -437,13 +437,13 @@ describe('TrackEnded event', () => {
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(engine.getState()).toBe(State.Ended);
-    sub.remove();
+    unsub();
   });
 
   it('does NOT emit TrackEnded when stop() was called before poller fires', async () => {
     const engine = makeEngine();
     const cb = jest.fn();
-    const sub = emitter.addEventListener(Event.TrackEnded, cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack(1, 30));
     await engine.stop(); // state → Stopped, poller cleared
@@ -452,14 +452,14 @@ describe('TrackEnded event', () => {
     jest.advanceTimersByTime(250);
 
     expect(cb).not.toHaveBeenCalled();
-    sub.remove();
+    unsub();
   });
 
   it('emits TrackEnded when the buffer source ends naturally (buffer path)', async () => {
     setStreamerAvailable(false);
     const engine = makeEngine();
     const cb = jest.fn();
-    const sub = emitter.addEventListener(Event.TrackEnded, cb);
+    const unsub = emitter.on(Event.TrackEnded, cb);
 
     await engine.loadAndPlay(makeTrack());
     const sources = getCreatedSources();
@@ -468,7 +468,7 @@ describe('TrackEnded event', () => {
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(engine.getState()).toBe(State.Ended);
-    sub.remove();
+    unsub();
   });
 });
 

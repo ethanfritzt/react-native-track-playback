@@ -6,7 +6,7 @@ import {
   type AudioBuffer,
   type StreamerNode,
 } from 'react-native-audio-api';
-import { Event, State, Track, PlaybackError } from './types';
+import { Event, State, Track } from './types';
 import { emitter } from './EventEmitter';
 
 /**
