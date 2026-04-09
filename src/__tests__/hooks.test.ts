@@ -19,6 +19,7 @@ import { emitter } from '../EventEmitter';
 import { _registerProgressGetters, useProgress } from '../hooks/useProgress';
 import { usePlaybackState } from '../hooks/usePlaybackState';
 import { _registerActiveTrackGetter } from '../hooks/useActiveTrack';
+import { _registerQueueGetter, useQueue } from '../hooks/useQueue';
 
 // ---------------------------------------------------------------------------
 // Reset
@@ -305,6 +306,75 @@ describe('useActiveTrack — _registerActiveTrackGetter', () => {
   it('accepts a getter that returns a track', () => {
     const track = { id: '1', url: 'https://example.com/a.mp3', title: 'Track A' };
     expect(() => _registerActiveTrackGetter(() => track)).not.toThrow();
+  });
+});
+
+describe('useQueue — _registerQueueGetter', () => {
+  it('accepts a getter function without throwing', () => {
+    expect(() => _registerQueueGetter(() => [])).not.toThrow();
+  });
+
+  it('accepts a getter that returns a queue', () => {
+    const queue = [{ id: '1', url: 'https://example.com/a.mp3', title: 'Track A' }];
+    expect(() => _registerQueueGetter(() => queue)).not.toThrow();
+  });
+
+  it('hook export is a function (smoke test)', () => {
+    expect(typeof useQueue).toBe('function');
+  });
+});
+
+describe('useQueue — QueueChanged subscription', () => {
+  it('emits updated queue via QueueChanged', () => {
+    const received: Array<readonly { title?: string }[]> = [];
+
+    const unsub = emitter.on(Event.QueueChanged, (payload: any) => {
+      received.push(payload);
+    });
+
+    emitter.emit(Event.QueueChanged, [
+      { id: '1', url: 'https://example.com/a.mp3', title: 'Track A' },
+      { id: '2', url: 'https://example.com/b.mp3', title: 'Track B' },
+    ]);
+
+    expect(received).toHaveLength(1);
+    expect(received[0]?.map((track) => track.title)).toEqual(['Track A', 'Track B']);
+
+    unsub();
+  });
+
+  it('emits an empty queue when cleared', () => {
+    const received: Array<readonly unknown[]> = [];
+
+    const unsub = emitter.on(Event.QueueChanged, (payload: any) => {
+      received.push(payload);
+    });
+
+    emitter.emit(Event.QueueChanged, []);
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual([]);
+
+    unsub();
+  });
+
+  it('tracks multiple successive queue changes in order', () => {
+    const lengths: number[] = [];
+
+    const unsub = emitter.on(Event.QueueChanged, (payload: any) => {
+      lengths.push(payload.length);
+    });
+
+    emitter.emit(Event.QueueChanged, [{ url: 'https://example.com/a.mp3', title: 'A' }]);
+    emitter.emit(Event.QueueChanged, [
+      { url: 'https://example.com/a.mp3', title: 'A' },
+      { url: 'https://example.com/b.mp3', title: 'B' },
+    ]);
+    emitter.emit(Event.QueueChanged, []);
+
+    expect(lengths).toEqual([1, 2, 0]);
+
+    unsub();
   });
 });
 

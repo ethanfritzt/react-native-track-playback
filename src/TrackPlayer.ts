@@ -17,6 +17,7 @@ import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
 import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
 import { _registerStateGetter } from './hooks/usePlaybackState';
+import { _registerQueueGetter } from './hooks/useQueue';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -36,6 +37,7 @@ _registerStateGetter(() => engine.getState());
 
 // Wire active-track getter into useActiveTrack without creating circular imports
 _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
+_registerQueueGetter(() => queue.getQueue());
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
