@@ -89,3 +89,74 @@ describe('EventEmitter', () => {
     expect(() => emitter.off('test', handler)).not.toThrow();
   });
 });
+
+
+  // -------------------------------------------------------------------------
+  // Edge cases (issue #5 additions)
+  // -------------------------------------------------------------------------
+
+  it('removing a listener twice does not throw', () => {
+    const handler = jest.fn();
+    emitter.on('test', handler);
+    emitter.off('test', handler);
+    // Second removal — should be silent
+    expect(() => emitter.off('test', handler)).not.toThrow();
+  });
+
+  it('adding a listener during event dispatch does not affect the current dispatch cycle', () => {
+    const order: string[] = [];
+
+    emitter.on('test', () => {
+      order.push('first');
+      // Register a new listener mid-dispatch
+      emitter.on('test', () => order.push('late'));
+    });
+
+    emitter.emit('test');
+    // 'late' was registered inside the dispatch — should NOT have fired yet
+    expect(order).toEqual(['first']);
+
+    // On the next emit, the late listener fires
+    emitter.emit('test');
+    expect(order).toContain('late');
+  });
+
+  it('all Event enum values are emittable without throwing', () => {
+    const { Event } = require('../types');
+    const eventValues: string[] = Object.values(Event);
+    expect(eventValues.length).toBeGreaterThan(0);
+    for (const eventName of eventValues) {
+      expect(() => emitter.emit(eventName, {})).not.toThrow();
+    }
+  });
+
+  it('PlaybackError payload has message and code fields', () => {
+    const { Event } = require('../types');
+    const received: any[] = [];
+    const unsub = emitter.on(Event.PlaybackError, (payload: any) => received.push(payload));
+
+    emitter.emit(Event.PlaybackError, { message: 'stream failed', code: -1 });
+
+    expect(received[0]).toMatchObject({ message: expect.any(String), code: expect.any(Number) });
+    unsub();
+  });
+
+  it('PlaybackActiveTrackChanged payload has track and index fields', () => {
+    const { Event } = require('../types');
+    const received: any[] = [];
+    const unsub = emitter.on(Event.PlaybackActiveTrackChanged, (payload: any) => received.push(payload));
+
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: { url: 'http://example.com/t.mp3', title: 'Track 1' },
+      index: 0,
+      lastTrack: null,
+      lastIndex: -1,
+    });
+
+    expect(received[0]).toMatchObject({
+      track: expect.objectContaining({ url: expect.any(String) }),
+      index: expect.any(Number),
+    });
+    unsub();
+  });
+});
