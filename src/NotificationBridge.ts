@@ -12,12 +12,12 @@ import { emitter } from './EventEmitter';
 
 // Maps our Capability enum values to RNAP's PlaybackControlName strings
 const CAPABILITY_TO_CONTROL: Partial<Record<Capability, string>> = {
-  [Capability.Play]:           'play',
-  [Capability.Pause]:          'pause',
+  [Capability.Play]: 'play',
+  [Capability.Pause]: 'pause',
   // Note: RNAP has no 'stop' control — omit it; stop is handled by the app
-  [Capability.SkipToNext]:     'next',
+  [Capability.SkipToNext]: 'next',
   [Capability.SkipToPrevious]: 'previous',
-  [Capability.SeekTo]:         'seekTo',
+  [Capability.SeekTo]: 'seekTo',
 };
 
 type RNAPSubscription = { remove: () => void };
@@ -45,19 +45,23 @@ export class NotificationBridge {
     // Only controls whose enabled/disabled state has changed since the last
     // setup() call are sent — this avoids redundant async work when
     // updateOptions() is called more than once (e.g. per-track capability changes).
-    const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
-    const changed = allRNAPControls.filter(control => {
-      const isEnabled = capabilities.some(
-        cap => CAPABILITY_TO_CONTROL[cap] === control
-      );
+    const allRNAPControls = [
+      'play',
+      'pause',
+      'next',
+      'previous',
+      'skipForward',
+      'skipBackward',
+      'seekTo',
+    ] as const;
+    const changed = allRNAPControls.filter((control) => {
+      const isEnabled = capabilities.some((cap) => CAPABILITY_TO_CONTROL[cap] === control);
       return this.appliedControls.get(control) !== isEnabled;
     });
 
     await Promise.all(
-      changed.map(control => {
-        const isEnabled = capabilities.some(
-          cap => CAPABILITY_TO_CONTROL[cap] === control
-        );
+      changed.map((control) => {
+        const isEnabled = capabilities.some((cap) => CAPABILITY_TO_CONTROL[cap] === control);
         this.appliedControls.set(control, isEnabled);
         return PlaybackNotificationManager.enableControl(control, isEnabled);
       })
@@ -65,23 +69,19 @@ export class NotificationBridge {
 
     // Wire RNAP notification events → package EventEmitter
     this.subscriptions = [
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPlay',
-        () => emitter.emit(Event.RemotePlay)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPlay', () =>
+        emitter.emit(Event.RemotePlay)
       ),
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPause',
-        () => emitter.emit(Event.RemotePause)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPause', () =>
+        emitter.emit(Event.RemotePause)
       ),
       // Note: RNAP has no 'stop' notification event. RemoteStop is not wired
       // here — it fires only from app-level calls to TrackPlayer.stop().
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationNext',
-        () => emitter.emit(Event.RemoteNext)
+      PlaybackNotificationManager.addEventListener('playbackNotificationNext', () =>
+        emitter.emit(Event.RemoteNext)
       ),
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPrevious',
-        () => emitter.emit(Event.RemotePrevious)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPrevious', () =>
+        emitter.emit(Event.RemotePrevious)
       ),
       PlaybackNotificationManager.addEventListener(
         'playbackNotificationSeekTo',
@@ -93,7 +93,7 @@ export class NotificationBridge {
   }
 
   teardown(): void {
-    this.subscriptions.forEach(s => s.remove());
+    this.subscriptions.forEach((s) => s.remove());
     this.subscriptions = [];
     this.isSetup = false;
     this.appliedControls.clear();
@@ -112,15 +112,10 @@ export class NotificationBridge {
    * iOS note: elapsedTime does NOT update automatically — it must be set
    * manually on each state change, which is why we require `position` here.
    */
-  async updateNowPlaying(
-    track: Track,
-    state: State,
-    position: number
-  ): Promise<void> {
+  async updateNowPlaying(track: Track, state: State, position: number): Promise<void> {
     if (!this.isSetup) return;
 
-    const notifState: 'playing' | 'paused' =
-      state === State.Playing ? 'playing' : 'paused';
+    const notifState: 'playing' | 'paused' = state === State.Playing ? 'playing' : 'paused';
 
     await PlaybackNotificationManager.show({
       title: track.title,

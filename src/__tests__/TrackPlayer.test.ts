@@ -69,6 +69,17 @@ describe('updateOptions', () => {
 // ---------------------------------------------------------------------------
 
 describe('setQueue', () => {
+  it('emits QueueChanged with the new queue', async () => {
+    await setup();
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.QueueChanged, handler);
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    expect(handler).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Track 2' }),
+    ]);
+  });
+
   it('does NOT begin playback — state is Stopped after setQueue alone', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);
@@ -139,12 +150,37 @@ describe('setQueue', () => {
 // ---------------------------------------------------------------------------
 
 describe('add / remove / getQueue / getTrack', () => {
+  it('add emits QueueChanged with the appended queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.QueueChanged, handler);
+    TrackPlayer.add([track(2), track(3)]);
+    expect(handler).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Track 2' }),
+      expect.objectContaining({ title: 'Track 3' }),
+    ]);
+  });
+
   it('add appends tracks to the queue', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1)]);
     TrackPlayer.add([track(2), track(3)]);
     const q = TrackPlayer.getQueue();
     expect(q).toHaveLength(3);
+  });
+
+  it('remove emits QueueChanged with the filtered queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2), track(3)]);
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.QueueChanged, handler);
+    TrackPlayer.remove([1]);
+    expect(handler).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Track 3' }),
+    ]);
   });
 
   it('remove removes a track by index', async () => {
@@ -472,6 +508,18 @@ describe('addEventListener', () => {
 // ---------------------------------------------------------------------------
 
 describe('updateMetadataForTrack', () => {
+  it('emits QueueChanged with the patched queue', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    const handler = jest.fn();
+    TrackPlayer.addEventListener(Event.QueueChanged, handler);
+    await TrackPlayer.updateMetadataForTrack(1, { title: 'Patched' });
+    expect(handler).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Patched' }),
+    ]);
+  });
+
   it('patches the stored track in the queue', async () => {
     await setup();
     await TrackPlayer.setQueue([track(1), track(2)]);

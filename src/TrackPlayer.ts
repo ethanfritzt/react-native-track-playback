@@ -94,6 +94,10 @@ engine.onTrackEnded(async () => {
 // TrackPlayer public API
 // ---------------------------------------------------------------------------
 
+function emitQueueChanged(): void {
+  emitter.emit(Event.QueueChanged, queue.getQueue());
+}
+
 const TrackPlayer = {
   /**
    * Tear down the player completely — stops playback, clears the queue, destroys
@@ -151,11 +155,13 @@ const TrackPlayer = {
   async setQueue(tracks: Track[]): Promise<void> {
     await engine.stop();
     queue.setQueue(tracks);
+    emitQueueChanged();
   },
 
   /** Append tracks to the end of the queue. */
   add(tracks: Track[]): void {
     queue.add(tracks);
+    emitQueueChanged();
   },
 
   /**
@@ -164,6 +170,7 @@ const TrackPlayer = {
    */
   remove(indexOrIndices: number | number[] | Track | Track[]): void {
     queue.remove(indexOrIndices);
+    emitQueueChanged();
   },
 
   getQueue(): readonly Track[] {
@@ -192,6 +199,8 @@ const TrackPlayer = {
   async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
     const updated = queue.updateTrack(index, metadata);
     if (!updated) return;
+
+    emitQueueChanged();
 
     // Only refresh the notification if this is the active track
     if (index === queue.getActiveIndex()) {

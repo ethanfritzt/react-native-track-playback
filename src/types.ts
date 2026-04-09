@@ -17,35 +17,36 @@ export interface Track {
 export type TrackMetadata = Omit<Track, 'url'>;
 
 export enum State {
-  None      = 'none',
-  Loading   = 'loading',
+  None = 'none',
+  Loading = 'loading',
   Buffering = 'buffering',
-  Playing   = 'playing',
-  Paused    = 'paused',
-  Stopped   = 'stopped',
-  Ended     = 'ended',
-  Error     = 'error',
+  Playing = 'playing',
+  Paused = 'paused',
+  Stopped = 'stopped',
+  Ended = 'ended',
+  Error = 'error',
 }
 
 export enum Event {
-  PlaybackState              = 'playback-state',
-  PlaybackError              = 'playback-error',
+  PlaybackState = 'playback-state',
+  PlaybackError = 'playback-error',
   PlaybackActiveTrackChanged = 'playback-active-track-changed',
-  RemotePlay                 = 'remote-play',
-  RemotePause                = 'remote-pause',
-  RemoteStop                 = 'remote-stop',
-  RemoteNext                 = 'remote-next',
-  RemotePrevious             = 'remote-previous',
-  RemoteSeek                 = 'remote-seek',
+  QueueChanged = 'queue-changed',
+  RemotePlay = 'remote-play',
+  RemotePause = 'remote-pause',
+  RemoteStop = 'remote-stop',
+  RemoteNext = 'remote-next',
+  RemotePrevious = 'remote-previous',
+  RemoteSeek = 'remote-seek',
 }
 
 export enum Capability {
-  Play           = 'play',
-  Pause          = 'pause',
-  Stop           = 'stop',
-  SkipToNext     = 'skip-to-next',
+  Play = 'play',
+  Pause = 'pause',
+  Stop = 'stop',
+  SkipToNext = 'skip-to-next',
   SkipToPrevious = 'skip-to-previous',
-  SeekTo         = 'seek-to',
+  SeekTo = 'seek-to',
 }
 
 export interface PlaybackState {
@@ -87,7 +88,7 @@ export interface UpdateOptions {
 export class PlaybackError extends Error {
   constructor(
     message: string,
-    public readonly code: number,
+    public readonly code: number
   ) {
     super(message);
     this.name = 'PlaybackError';
@@ -108,6 +109,7 @@ export interface EventPayloadMap {
   [Event.PlaybackState]: PlaybackState;
   [Event.PlaybackError]: PlaybackError;
   [Event.PlaybackActiveTrackChanged]: ActiveTrackChangedEvent;
+  [Event.QueueChanged]: readonly Track[];
   [Event.RemotePlay]: void;
   [Event.RemotePause]: void;
   [Event.RemoteNext]: void;

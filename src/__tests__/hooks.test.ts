@@ -16,10 +16,7 @@
 
 import { Event, State } from '../types';
 import { emitter } from '../EventEmitter';
-import {
-  _registerProgressGetters,
-  useProgress,
-} from '../hooks/useProgress';
+import { _registerProgressGetters, useProgress } from '../hooks/useProgress';
 import { usePlaybackState } from '../hooks/usePlaybackState';
 import { _registerActiveTrackGetter } from '../hooks/useActiveTrack';
 
@@ -110,7 +107,11 @@ describe('useProgress — getter registration', () => {
     expect(typeof _registerProgressGetters).toBe('function');
     // Should not throw
     expect(() =>
-      _registerProgressGetters(() => 0, () => 0, () => State.None),
+      _registerProgressGetters(
+        () => 0,
+        () => 0,
+        () => State.None
+      )
     ).not.toThrow();
   });
 
@@ -298,16 +299,12 @@ describe('useProgress — polling interval', () => {
 
 describe('useActiveTrack — _registerActiveTrackGetter', () => {
   it('accepts a getter function without throwing', () => {
-    expect(() =>
-      _registerActiveTrackGetter(() => null),
-    ).not.toThrow();
+    expect(() => _registerActiveTrackGetter(() => null)).not.toThrow();
   });
 
   it('accepts a getter that returns a track', () => {
     const track = { id: '1', url: 'https://example.com/a.mp3', title: 'Track A' };
-    expect(() =>
-      _registerActiveTrackGetter(() => track),
-    ).not.toThrow();
+    expect(() => _registerActiveTrackGetter(() => track)).not.toThrow();
   });
 });
 
@@ -362,9 +359,24 @@ describe('useActiveTrack — PlaybackActiveTrackChanged subscription', () => {
       titles.push(payload.track?.title ?? null);
     });
 
-    emitter.emit(Event.PlaybackActiveTrackChanged, { track: trackA, index: 0, lastTrack: null, lastIndex: -1 });
-    emitter.emit(Event.PlaybackActiveTrackChanged, { track: trackB, index: 1, lastTrack: trackA, lastIndex: 0 });
-    emitter.emit(Event.PlaybackActiveTrackChanged, { track: null, index: -1, lastTrack: trackB, lastIndex: 1 });
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: trackA,
+      index: 0,
+      lastTrack: null,
+      lastIndex: -1,
+    });
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: trackB,
+      index: 1,
+      lastTrack: trackA,
+      lastIndex: 0,
+    });
+    emitter.emit(Event.PlaybackActiveTrackChanged, {
+      track: null,
+      index: -1,
+      lastTrack: trackB,
+      lastIndex: 1,
+    });
 
     expect(titles).toEqual(['A', 'B', null]);
 

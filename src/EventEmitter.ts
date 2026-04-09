@@ -20,7 +20,7 @@ export class EventEmitter {
   }
 
   emit(event: string, ...args: unknown[]): void {
-    this.listeners.get(event)?.forEach(h => h(...args));
+    this.listeners.get(event)?.forEach((h) => h(...args));
   }
 }
 

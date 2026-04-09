@@ -74,10 +74,8 @@ export function useProgress(updateInterval = 1000): Progress {
       if (isPlaying) {
         const position = _getPosition();
         const duration = _getDuration();
-        setProgress(prev =>
-          prev.position === position && prev.duration === duration
-            ? prev
-            : { position, duration }
+        setProgress((prev) =>
+          prev.position === position && prev.duration === duration ? prev : { position, duration }
         );
       }
     });

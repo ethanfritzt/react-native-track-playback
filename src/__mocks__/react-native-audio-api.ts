@@ -203,11 +203,9 @@ export { MockAudioContext as AudioContext };
 // decodeAudioData
 // ---------------------------------------------------------------------------
 
-export const decodeAudioData = jest.fn(
-  (_url: string): MockAudioBuffer => {
-    return new MockAudioBuffer(_nextDecodeDuration);
-  }
-);
+export const decodeAudioData = jest.fn((_url: string): MockAudioBuffer => {
+  return new MockAudioBuffer(_nextDecodeDuration);
+});
 
 // ---------------------------------------------------------------------------
 // PlaybackNotificationManager

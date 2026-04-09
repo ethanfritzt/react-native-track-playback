@@ -75,25 +75,25 @@ describe('remove', () => {
   it('removes a single track by index', () => {
     const q = makeQueue(1, 2, 3);
     q.remove(1);
-    expect(q.getQueue().map(t => t.title)).toEqual(['Track 1', 'Track 3']);
+    expect(q.getQueue().map((t) => t.title)).toEqual(['Track 1', 'Track 3']);
   });
 
   it('removes multiple tracks by index array', () => {
     const q = makeQueue(1, 2, 3, 4);
     q.remove([0, 2]);
-    expect(q.getQueue().map(t => t.title)).toEqual(['Track 2', 'Track 4']);
+    expect(q.getQueue().map((t) => t.title)).toEqual(['Track 2', 'Track 4']);
   });
 
   it('removes a track by Track object (matched by URL)', () => {
     const q = makeQueue(1, 2, 3);
     q.remove(track(2));
-    expect(q.getQueue().map(t => t.title)).toEqual(['Track 1', 'Track 3']);
+    expect(q.getQueue().map((t) => t.title)).toEqual(['Track 1', 'Track 3']);
   });
 
   it('adjusts active index down when a track before current is removed', () => {
     const q = makeQueue(1, 2, 3);
     q.skipToNext(); // index 1 (Track 2)
-    q.remove(0);   // remove Track 1
+    q.remove(0); // remove Track 1
     expect(q.getActiveIndex()).toBe(0);
     expect(q.getActiveTrack()?.title).toBe('Track 2');
   });
@@ -240,7 +240,6 @@ describe('updateTrack', () => {
   });
 });
 
-
 // ---------------------------------------------------------------------------
 // Edge cases — add() with insertBeforeIndex (issue #4)
 // ---------------------------------------------------------------------------
@@ -251,7 +250,7 @@ describe('add — insertBeforeIndex edge cases', () => {
     // No insertBeforeIndex support in current API — add() always appends.
     // This test documents the expected append-only behaviour.
     q.add([track(3)]);
-    expect(q.getQueue().map(t => t.title)).toEqual(['Track 1', 'Track 2', 'Track 3']);
+    expect(q.getQueue().map((t) => t.title)).toEqual(['Track 1', 'Track 2', 'Track 3']);
   });
 
   it('adding to a full queue beyond its length appends correctly', () => {

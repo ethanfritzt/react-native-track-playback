@@ -37,7 +37,7 @@ export function useActiveTrack(): Track | null {
   const [track, setTrack] = useState<Track | null>(
     // Snapshot current track on mount if the getter is already registered.
     // Avoids a stale null flash when the hook mounts mid-playback.
-    _isSetup ? _getActiveTrack() : null,
+    _isSetup ? _getActiveTrack() : null
   );
 
   useEffect(() => {
