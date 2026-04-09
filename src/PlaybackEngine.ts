@@ -1,13 +1,14 @@
+import { Event, State, Track, PlaybackError } from './types';
+import { emitter } from './EventEmitter';
 import {
-  AudioContext,
-  decodeAudioData,
+  playbackAudioApi,
   type AudioBufferSourceNode,
   type GainNode,
   type AudioBuffer,
   type StreamerNode,
-} from 'react-native-audio-api';
-import { Event, State, Track, PlaybackError } from './types';
-import { emitter } from './EventEmitter';
+  type PlaybackAudioApi,
+  type PlaybackAudioContext,
+} from './audioContext';
 
 /**
  * PlaybackEngine owns the AudioContext and source node lifecycle.
@@ -55,7 +56,7 @@ import { emitter } from './EventEmitter';
  *   corrupt the engine state.
  */
 export class PlaybackEngine {
-  private context: AudioContext | null = null;
+  private context: PlaybackAudioContext | null = null;
   private gainNode: GainNode | null = null;
 
   // --- AudioBufferSourceNode path (decodeAudioData fallback) ---
@@ -101,13 +102,15 @@ export class PlaybackEngine {
   /** Interval handle for the StreamerNode track-end poller. */
   private streamerPollTimer: ReturnType<typeof setInterval> | null = null;
 
+  constructor(private readonly audioApi: PlaybackAudioApi = playbackAudioApi) {}
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
 
   init(): void {
     if (this.context) return; // idempotent
-    this.context = new AudioContext();
+    this.context = this.audioApi.createContext();
     this.gainNode = this.context.createGain();
     this.gainNode.connect(this.context.destination);
 
@@ -265,7 +268,7 @@ export class PlaybackEngine {
       this.prefetchBuffer = null;
       this.prefetchUrl = null;
     } else {
-      buffer = await decodeAudioData(track.url);
+      buffer = await this.audioApi.decode(track.url);
 
       // A newer loadAndPlay() fired while we were downloading — discard the
       // decoded buffer and exit. The newer load has already taken ownership.
@@ -396,7 +399,7 @@ export class PlaybackEngine {
 
     if (!this.context || track.url === this.prefetchUrl) return;
     try {
-      const buffer = await decodeAudioData(track.url);
+      const buffer = await this.audioApi.decode(track.url);
       this.prefetchBuffer = buffer;
       this.prefetchUrl = track.url;
     } catch {
