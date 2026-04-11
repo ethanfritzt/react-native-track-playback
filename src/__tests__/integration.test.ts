@@ -59,7 +59,7 @@ function triggerStreamerEnd(duration = 60): void {
 /** Flush pending microtasks and macrotasks. */
 async function flushAsync(rounds = 3): Promise<void> {
   for (let i = 0; i < rounds; i++) {
-    await new Promise<void>(r => setImmediate(r));
+    await new Promise<void>((r) => setImmediate(r));
   }
 }
 
@@ -90,11 +90,9 @@ describe('Scenario 1: full single-track lifecycle (streaming path)', () => {
 
     const events: string[] = [];
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () =>
-      events.push('trackChanged'),
+      events.push('trackChanged')
     );
-    TrackPlayer.addEventListener(Event.PlaybackState, (e) =>
-      events.push(`state:${e.state}`),
-    );
+    TrackPlayer.addEventListener(Event.PlaybackState, (e) => events.push(`state:${e.state}`));
 
     await TrackPlayer.setQueue([track(1, 120)]);
     await TrackPlayer.play();
@@ -103,19 +101,19 @@ describe('Scenario 1: full single-track lifecycle (streaming path)', () => {
     expect(events).toContain('trackChanged');
 
     await TrackPlayer.seekTo(45);
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
+    expect(TrackPlayer.getPlaybackState().position).toBeCloseTo(45, 3);
 
     await TrackPlayer.pause();
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Paused });
 
     getLastAudioContext()!.advanceTime(30);
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
+    expect(TrackPlayer.getPlaybackState().position).toBeCloseTo(45, 3);
 
     await TrackPlayer.play();
     expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
 
     getLastAudioContext()!.advanceTime(10);
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(55, 3);
+    expect(TrackPlayer.getPlaybackState().position).toBeCloseTo(55, 3);
 
     triggerStreamerEnd(120);
     await flushAsync();
@@ -236,19 +234,19 @@ describe('Scenario 5: notification lifecycle across a full session', () => {
     await TrackPlayer.play();
 
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Track 1' })
     );
 
     jest.clearAllMocks();
     await TrackPlayer.seekTo(30);
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
-      expect.objectContaining({ elapsedTime: 30 }),
+      expect.objectContaining({ elapsedTime: 30 })
     );
 
     jest.clearAllMocks();
     await TrackPlayer.updateMetadataForTrack(0, { artwork: 'https://example.com/cover.jpg' });
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
-      expect.objectContaining({ artwork: 'https://example.com/cover.jpg' }),
+      expect.objectContaining({ artwork: 'https://example.com/cover.jpg' })
     );
 
     jest.clearAllMocks();
@@ -263,7 +261,7 @@ describe('Scenario 5: notification lifecycle across a full session', () => {
     await TrackPlayer.play();
 
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Track 1' }),
+      expect.objectContaining({ title: 'Track 1' })
     );
 
     jest.clearAllMocks();
@@ -271,7 +269,7 @@ describe('Scenario 5: notification lifecycle across a full session', () => {
     await flushAsync();
 
     expect(PlaybackNotificationManager.show).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Track 2' }),
+      expect.objectContaining({ title: 'Track 2' })
     );
 
     jest.clearAllMocks();
@@ -315,7 +313,7 @@ describe('Scenario 6: skipToPrevious / skipToNext edge cases', () => {
     await TrackPlayer.skipToPrevious();
 
     expect(TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(0, 3);
+    expect(TrackPlayer.getPlaybackState().position).toBeCloseTo(0, 3);
   });
 
   it('skip forward then backward then forward emits the correct track-changed events', async () => {
@@ -438,7 +436,7 @@ describe('Bug #9: silent error swallow on auto-advance', () => {
     await TrackPlayer.play();
 
     const errors: unknown[] = [];
-    TrackPlayer.addEventListener(Event.PlaybackError, payload => {
+    TrackPlayer.addEventListener(Event.PlaybackError, (payload) => {
       errors.push(payload);
     });
 

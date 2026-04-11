@@ -51,23 +51,19 @@ export class NotificationBridge {
 
     // Wire RNAP notification events → package EventEmitter
     this.subscriptions = [
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPlay',
-        () => emitter.emit(Event.RemotePlay)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPlay', () =>
+        emitter.emit(Event.RemotePlay)
       ),
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPause',
-        () => emitter.emit(Event.RemotePause)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPause', () =>
+        emitter.emit(Event.RemotePause)
       ),
       // Note: RNAP has no 'stop' notification event. RemoteStop is not wired
       // here — it fires only from app-level calls to TrackPlayer.stop().
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationNext',
-        () => emitter.emit(Event.RemoteNext)
+      PlaybackNotificationManager.addEventListener('playbackNotificationNext', () =>
+        emitter.emit(Event.RemoteNext)
       ),
-      PlaybackNotificationManager.addEventListener(
-        'playbackNotificationPrevious',
-        () => emitter.emit(Event.RemotePrevious)
+      PlaybackNotificationManager.addEventListener('playbackNotificationPrevious', () =>
+        emitter.emit(Event.RemotePrevious)
       ),
       PlaybackNotificationManager.addEventListener(
         'playbackNotificationSeekTo',
@@ -79,7 +75,7 @@ export class NotificationBridge {
   }
 
   teardown(): void {
-    this.subscriptions.forEach(s => s.remove());
+    this.subscriptions.forEach((s) => s.remove());
     this.subscriptions = [];
     this.isSetup = false;
     this.appliedControls.clear();
@@ -98,15 +94,10 @@ export class NotificationBridge {
    * iOS note: elapsedTime does NOT update automatically — it must be set
    * manually on each state change, which is why we require `position` here.
    */
-  async updateNowPlaying(
-    track: Track,
-    state: State,
-    position: number
-  ): Promise<void> {
+  async updateNowPlaying(track: Track, state: State, position: number): Promise<void> {
     if (!this.isSetup) return;
 
-    const notifState: 'playing' | 'paused' =
-      state === State.Playing ? 'playing' : 'paused';
+    const notifState: 'playing' | 'paused' = state === State.Playing ? 'playing' : 'paused';
 
     await PlaybackNotificationManager.show({
       title: track.title,

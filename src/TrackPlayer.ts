@@ -17,6 +17,7 @@ import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
 import { _registerActiveTrackGetter } from './hooks/useActiveTrack';
 import { _registerStateGetter } from './hooks/usePlaybackState';
+import { _registerQueueGetter } from './hooks/useQueue';
 
 // ---------------------------------------------------------------------------
 // Module-level singletons
@@ -36,6 +37,7 @@ _registerStateGetter(() => engine.getState());
 
 // Wire active-track getter into useActiveTrack without creating circular imports
 _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
+_registerQueueGetter(() => queue.getQueue());
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -86,6 +88,10 @@ engine.onTrackEnded(async () => {
 // ---------------------------------------------------------------------------
 // TrackPlayer public API
 // ---------------------------------------------------------------------------
+
+function emitQueueChanged(): void {
+  emitter.emit(Event.QueueChanged, queue.getQueue());
+}
 
 const TrackPlayer = {
   /**
@@ -144,11 +150,13 @@ const TrackPlayer = {
   async setQueue(tracks: Track[]): Promise<void> {
     await engine.stop();
     queue.setQueue(tracks);
+    emitQueueChanged();
   },
 
   /** Append tracks to the end of the queue. */
   add(tracks: Track[]): void {
     queue.add(tracks);
+    emitQueueChanged();
   },
 
   /**
@@ -157,6 +165,7 @@ const TrackPlayer = {
    */
   remove(indexOrIndices: number | number[] | Track | Track[]): void {
     queue.remove(indexOrIndices);
+    emitQueueChanged();
   },
 
   getQueue(): readonly Track[] {
@@ -185,6 +194,8 @@ const TrackPlayer = {
   async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
     const updated = queue.updateTrack(index, metadata);
     if (!updated) return;
+
+    emitQueueChanged();
 
     // Only refresh the notification if this is the active track
     if (index === queue.getActiveIndex()) {

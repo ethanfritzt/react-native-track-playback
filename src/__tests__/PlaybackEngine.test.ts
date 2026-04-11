@@ -151,7 +151,12 @@ describe('loadAndPlay (streaming path)', () => {
     clearCreatedStreamers();
     // Override: createStreamer returns a node whose initialize returns false
     const ctx = getLastAudioContext()!;
-    const failNode = { connect: jest.fn(), initialize: jest.fn().mockReturnValue(false), start: jest.fn(), stop: jest.fn() };
+    const failNode = {
+      connect: jest.fn(),
+      initialize: jest.fn().mockReturnValue(false),
+      start: jest.fn(),
+      stop: jest.fn(),
+    };
     jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce(failNode as any);
     await expect(patchedEngine.loadAndPlay(makeTrack())).rejects.toThrow('failed to initialize');
     expect(patchedEngine.getState()).toBe(State.Error);
@@ -203,10 +208,10 @@ describe('pause / resume', () => {
     const ctx = getLastAudioContext()!;
 
     ctx.advanceTime(5);
-    await engine.pause();        // pausedPosition = 5
-    ctx.advanceTime(100);        // time passes while paused (should not count)
+    await engine.pause(); // pausedPosition = 5
+    ctx.advanceTime(100); // time passes while paused (should not count)
     await engine.resume();
-    ctx.advanceTime(3);          // 3 more seconds of play after resume
+    ctx.advanceTime(3); // 3 more seconds of play after resume
 
     expect(engine.getPosition()).toBeCloseTo(8, 4);
   });

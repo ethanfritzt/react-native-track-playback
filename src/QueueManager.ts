@@ -34,19 +34,19 @@ export class QueueManager {
    */
   remove(indexOrIndices: number | number[] | Track | Track[]): void {
     // Resolve any Track objects to their queue indices
-    const resolved = (Array.isArray(indexOrIndices) ? indexOrIndices : [indexOrIndices]).map(
-      (item): number => {
+    const resolved = (Array.isArray(indexOrIndices) ? indexOrIndices : [indexOrIndices])
+      .map((item): number => {
         if (typeof item === 'number') return item;
         // Track object — find by URL
-        const idx = this.queue.findIndex(t => t.url === item.url);
+        const idx = this.queue.findIndex((t) => t.url === item.url);
         return idx; // -1 if not found; will be filtered below
-      }
-    ).filter(i => i >= 0);
+      })
+      .filter((i) => i >= 0);
 
     const indices = new Set(resolved);
 
     const removingCurrent = indices.has(this.currentIndex);
-    const removedBefore = [...indices].filter(i => i < this.currentIndex).length;
+    const removedBefore = [...indices].filter((i) => i < this.currentIndex).length;
 
     this.queue = this.queue.filter((_, i) => !indices.has(i));
 
@@ -54,10 +54,7 @@ export class QueueManager {
       this.currentIndex = -1;
     } else if (removingCurrent) {
       // Land on the track that slid into the current slot, or clamp to last
-      this.currentIndex = Math.min(
-        this.currentIndex - removedBefore,
-        this.queue.length - 1
-      );
+      this.currentIndex = Math.min(this.currentIndex - removedBefore, this.queue.length - 1);
     } else {
       this.currentIndex -= removedBefore;
     }
@@ -127,5 +124,4 @@ export class QueueManager {
   getActiveIndex(): number {
     return this.currentIndex;
   }
-
 }

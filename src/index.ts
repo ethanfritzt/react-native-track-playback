@@ -13,7 +13,6 @@ export { default } from './TrackPlayer';
 
 // Named exports
 
-
 // Types & enums
 export type { Track, TrackMetadata, PlaybackState, Progress, UpdateOptions, ActiveTrackChangedEvent, RemoteSeekEvent, EventPayloadMap, Subscription } from './types';
 export { State, Event, Control, PlaybackError } from './types';
@@ -22,3 +21,4 @@ export { State, Event, Control, PlaybackError } from './types';
 export { usePlaybackState } from './hooks/usePlaybackState';
 export { useProgress } from './hooks/useProgress';
 export { useActiveTrack } from './hooks/useActiveTrack';
+export { useQueue } from './hooks/useQueue';
