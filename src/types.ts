@@ -39,13 +39,14 @@ export enum Event {
   RemoteSeek                 = 'remote-seek',
 }
 
-export enum Capability {
-  Play           = 'play',
-  Pause          = 'pause',
-  Stop           = 'stop',
-  SkipToNext     = 'skip-to-next',
-  SkipToPrevious = 'skip-to-previous',
-  SeekTo         = 'seek-to',
+export enum Control {
+  Play          = 'play',
+  Pause         = 'pause',
+  NextTrack     = 'nextTrack',
+  PreviousTrack = 'previousTrack',
+  SkipForward   = 'skipForward',
+  SkipBackward  = 'skipBackward',
+  SeekTo        = 'seekTo',
 }
 
 export interface PlaybackState {
@@ -83,7 +84,7 @@ export interface RemoteHandlers {
 /**
  * Options passed to TrackPlayer.updateOptions().
  *
- * @param capabilities - Controls shown in the system media notification /
+ * @param controls - Controls shown in the system media notification /
  *   lock screen. Maps to RNAP's PlaybackNotificationManager.enableControl().
  *   Only the listed capabilities are enabled; all others are explicitly
  *   disabled. Defaults to all capabilities disabled if omitted.
@@ -92,7 +93,7 @@ export interface RemoteHandlers {
  *   replaces it entirely.
  */
 export interface UpdateOptions {
-  capabilities: Capability[];
+  controls: Control[];
   remoteHandlers?: RemoteHandlers;
 }
 

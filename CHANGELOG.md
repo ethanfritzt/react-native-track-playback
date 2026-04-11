@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `UpdateOptions.remoteHandlers`: optional per-event overrides for remote control events (`onRemotePlay`, `onRemotePause`, `onRemoteStop`, `onRemoteNext`, `onRemotePrevious`, `onRemoteSeek`)
 - Default remote event handlers are now wired internally in `updateOptions()` — consumers no longer need to manually call `addEventListener` for standard play/pause/next/previous/seek/stop behavior
 - `EventPayloadMap` now includes `Event.RemoteStop` (was missing)
+### Breaking Changes
+- Renamed `Capability` enum to `Control`; values now match `react-native-audio-api`'s `PlaybackControlName` exactly (`nextTrack`, `previousTrack`, `skipForward`, `skipBackward`, `seekTo`). `Stop` was removed (no RNAP equivalent); `SkipForward` and `SkipBackward` were added. `UpdateOptions.capabilities` renamed to `UpdateOptions.controls`.
 
 ## [0.1.0] — 2026-04-04
 

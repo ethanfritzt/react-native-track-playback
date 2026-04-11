@@ -18,9 +18,6 @@
  *    `MockAudioContext.setStreamerAvailable(false)` before constructing the
  *    engine.
  *
- *  - decodeAudioData resolves with a MockAudioBuffer whose duration is
- *    controllable via the exported `setNextDecodeDuration` helper.
- *
  *  - Every node class exposes its jest.fn() stubs as public properties so
  *    tests can assert on calls (e.g. `streamer.initialize.mock.calls`).
  */
@@ -30,37 +27,11 @@
 // ---------------------------------------------------------------------------
 
 let _streamerAvailable = true;
-let _nextDecodeDuration = 30; // seconds
 
-/** Call in a test to simulate a non-FFmpeg (buffer-only) build. */
+/** Call in a test to simulate a non-FFmpeg build (createStreamer returns null). */
 export function setStreamerAvailable(available: boolean): void {
   _streamerAvailable = available;
 }
-
-/** Control the duration returned by the next decodeAudioData call. */
-export function setNextDecodeDuration(seconds: number): void {
-  _nextDecodeDuration = seconds;
-}
-
-// ---------------------------------------------------------------------------
-// MockAudioBuffer
-// ---------------------------------------------------------------------------
-
-export class MockAudioBuffer {
-  readonly duration: number;
-  readonly numberOfChannels: number = 2;
-  readonly length: number;
-  readonly sampleRate: number = 44100;
-
-  constructor(duration = _nextDecodeDuration) {
-    this.duration = duration;
-    this.length = Math.floor(duration * this.sampleRate);
-  }
-}
-
-// Re-export as AudioBuffer type alias so PlaybackEngine's `type AudioBuffer`
-// import resolves to this class in tests.
-export { MockAudioBuffer as AudioBuffer };
 
 // ---------------------------------------------------------------------------
 // MockGainNode
@@ -70,27 +41,6 @@ export class MockGainNode {
   connect = jest.fn();
   disconnect = jest.fn();
 }
-
-// ---------------------------------------------------------------------------
-// MockAudioBufferSourceNode
-// ---------------------------------------------------------------------------
-
-export class MockAudioBufferSourceNode {
-  buffer: MockAudioBuffer | null = null;
-  connect = jest.fn();
-  disconnect = jest.fn();
-  start = jest.fn();
-  stop = jest.fn();
-  onEnded: ((...args: unknown[]) => void) | null = null;
-
-  /** Simulate natural track end — fires onEnded if wired. */
-  simulateEnded(): void {
-    this.onEnded?.();
-  }
-}
-
-// Re-export alias
-export { MockAudioBufferSourceNode as AudioBufferSourceNode };
 
 // ---------------------------------------------------------------------------
 // MockStreamerNode
@@ -133,18 +83,6 @@ export function clearCreatedStreamers(): void {
   _createdStreamers.length = 0;
 }
 
-/**
- * Tracks every AudioBufferSourceNode created via createBufferSource() so
- * tests can grab the instance and simulate events.
- */
-const _createdSources: MockAudioBufferSourceNode[] = [];
-export function getCreatedSources(): MockAudioBufferSourceNode[] {
-  return _createdSources;
-}
-export function clearCreatedSources(): void {
-  _createdSources.length = 0;
-}
-
 export class MockAudioContext {
   state: 'running' | 'suspended' | 'closed' = 'running';
   currentTime: number = 0;
@@ -166,12 +104,6 @@ export class MockAudioContext {
 
   createGain(): MockGainNode {
     return this._gainNode;
-  }
-
-  createBufferSource(): MockAudioBufferSourceNode {
-    const node = new MockAudioBufferSourceNode();
-    _createdSources.push(node);
-    return node;
   }
 
   createStreamer(): MockStreamerNode | null {
@@ -198,16 +130,6 @@ export class MockAudioContext {
 
 // Re-export alias
 export { MockAudioContext as AudioContext };
-
-// ---------------------------------------------------------------------------
-// decodeAudioData
-// ---------------------------------------------------------------------------
-
-export const decodeAudioData = jest.fn(
-  (_url: string): MockAudioBuffer => {
-    return new MockAudioBuffer(_nextDecodeDuration);
-  }
-);
 
 // ---------------------------------------------------------------------------
 // PlaybackNotificationManager

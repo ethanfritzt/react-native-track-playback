@@ -24,12 +24,8 @@ import { Event, State, PlaybackError } from '../types';
 import {
   getLastAudioContext,
   getCreatedStreamers,
-  getCreatedSources,
   clearCreatedStreamers,
-  clearCreatedSources,
   setStreamerAvailable,
-  setNextDecodeDuration,
-  decodeAudioData,
   PlaybackNotificationManager,
 } from '../__mocks__/react-native-audio-api';
 
@@ -48,7 +44,7 @@ function track(n: number, duration = 60) {
 }
 
 async function setup() {
-  await TrackPlayer.updateOptions({ capabilities: [] });
+  await TrackPlayer.updateOptions({ controls: [] });
 }
 
 /**
@@ -58,12 +54,6 @@ async function setup() {
 function triggerStreamerEnd(duration = 60): void {
   getLastAudioContext()!.advanceTime(duration + 1);
   jest.advanceTimersByTime(250);
-}
-
-/** Returns the most recently created AudioBufferSourceNode. Use for buffer-path tests only. */
-function lastSource() {
-  const s = getCreatedSources();
-  return s[s.length - 1]!;
 }
 
 /** Flush pending microtasks and macrotasks. */
@@ -81,9 +71,7 @@ beforeEach(async () => {
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
   await TrackPlayer.destroy();
   clearCreatedStreamers();
-  clearCreatedSources();
   setStreamerAvailable(true);
-  setNextDecodeDuration(60);
   jest.clearAllMocks();
 });
 
@@ -187,72 +175,6 @@ describe('Scenario 2: full multi-track auto-advance (streaming path)', () => {
 
     expect(changes[0]).toMatchObject({ index: 1, lastIndex: 0 });
     expect(changes[1]).toMatchObject({ index: 2, lastIndex: 1 });
-  });
-});
-
-// ===========================================================================
-// Scenario 3 — Full lifecycle (buffer fallback path)
-// ===========================================================================
-
-describe('Scenario 3: full single-track lifecycle (buffer fallback path)', () => {
-  beforeEach(() => {
-    setStreamerAvailable(false);
-    setNextDecodeDuration(90);
-  });
-
-  it('play → pause → seek → resume → natural end works correctly', async () => {
-    await setup();
-
-    await TrackPlayer.setQueue([track(1, 90)]);
-    await TrackPlayer.play();
-
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
-    expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
-
-    await TrackPlayer.pause();
-    expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Paused });
-
-    await TrackPlayer.seekTo(30);
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(30, 3);
-
-    await TrackPlayer.play();
-    expect(TrackPlayer.getPlaybackState()).toMatchObject({ state: State.Playing });
-
-    getLastAudioContext()!.advanceTime(15);
-    expect((TrackPlayer.getPlaybackState()).position).toBeCloseTo(45, 3);
-
-    const progress = TrackPlayer.getProgress();
-    expect(progress.duration).toBe(90);
-  });
-
-  it('prefetches the next-next track on auto-advance and uses the cache', async () => {
-    await setup();
-
-    // Three-track queue: T1 ends → T2 starts + T3 prefetched in background
-    //                    T2 ends → T3 loads from cache (no second decodeAudioData)
-    await TrackPlayer.setQueue([track(1, 90), track(2, 90), track(3, 90)]);
-    await TrackPlayer.play();
-    expect(decodeAudioData).toHaveBeenCalledTimes(1); // T1 decoded
-
-    // T1 ends: T2 loaded (decode T2), prefetchNext(T3) fires concurrently
-    const source1 = lastSource();
-    clearCreatedSources();
-    source1.simulateEnded();
-    await flushAsync(5); // extra rounds: decode T2 + prefetch T3 both need time
-
-    expect(TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 2' });
-
-    // Clear spy — only observe what happens during T2→T3 advance
-    jest.clearAllMocks();
-
-    // T2 ends: T3 loaded from prefetch cache — no decodeAudioData call
-    const source2 = lastSource();
-    clearCreatedSources();
-    source2.simulateEnded();
-    await flushAsync(5);
-
-    expect(decodeAudioData).not.toHaveBeenCalled(); // cache hit ✓
-    expect(TrackPlayer.getActiveTrack()).toMatchObject({ title: 'Track 3' });
   });
 });
 
