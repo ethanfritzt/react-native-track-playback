@@ -642,7 +642,7 @@ describe('remote handlers', () => {
   it('custom onRemoteNext overrides default skipToNext', async () => {
     const customNext = jest.fn();
     await TrackPlayer.updateOptions({
-      capabilities: [],
+      controls: [],
       remoteHandlers: { onRemoteNext: customNext },
     });
     await TrackPlayer.setQueue([track(1), track(2)]);
@@ -659,7 +659,7 @@ describe('remote handlers', () => {
   it('custom onRemotePlay overrides default play()', async () => {
     const customPlay = jest.fn();
     await TrackPlayer.updateOptions({
-      capabilities: [],
+      controls: [],
       remoteHandlers: { onRemotePlay: customPlay },
     });
     await TrackPlayer.setQueue([track(1)]);
@@ -676,9 +676,9 @@ describe('remote handlers', () => {
     const first = jest.fn();
     const second = jest.fn();
 
-    await TrackPlayer.updateOptions({ capabilities: [], remoteHandlers: { onRemotePlay: first } });
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: first } });
     // Replace with second handler
-    await TrackPlayer.updateOptions({ capabilities: [], remoteHandlers: { onRemotePlay: second } });
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: second } });
 
     emitter.emit(Event.RemotePlay);
     await flushAsync();
@@ -689,7 +689,7 @@ describe('remote handlers', () => {
 
   it('destroy() removes remote subscriptions', async () => {
     const customPlay = jest.fn();
-    await TrackPlayer.updateOptions({ capabilities: [], remoteHandlers: { onRemotePlay: customPlay } });
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: customPlay } });
 
     await TrackPlayer.destroy();
 
