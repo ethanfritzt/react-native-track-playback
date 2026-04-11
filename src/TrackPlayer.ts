@@ -69,13 +69,6 @@ engine.onTrackEnded(async () => {
       lastIndex,
     });
 
-    // Kick off prefetch for the track after this one
-    const upcoming = queue.getTrack(nextIndex + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   } else {
     // Reached end of queue — reset engine to Stopped and notify listeners so
     // useProgress stops polling and active-track consumers see null.
@@ -319,12 +312,6 @@ const TrackPlayer = {
       lastIndex,
     });
 
-    const upcoming = queue.getTrack(index + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   },
 
   /**
