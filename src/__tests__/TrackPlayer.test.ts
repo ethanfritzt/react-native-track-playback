@@ -13,6 +13,7 @@
 
 import TrackPlayer from '../TrackPlayer';
 import { Event, State } from '../types';
+import { emitter } from '../EventEmitter';
 import {
   getLastAudioContext,
   getCreatedStreamers,
@@ -609,5 +610,140 @@ describe('getActiveTrackIndex', () => {
     await TrackPlayer.play();
     await TrackPlayer.skipToNext();
     expect(TrackPlayer.getActiveTrackIndex()).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// remote handlers
+// ---------------------------------------------------------------------------
+
+/** Flush all pending microtasks / promises */
+async function flushAsync() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+describe('remote handlers', () => {
+  it('default RemotePlay triggers play and transitions to Playing', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    // Ensure we start from Stopped state
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Stopped);
+
+    emitter.emit(Event.RemotePlay);
+    await flushAsync();
+
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Playing);
+  });
+
+  it('default RemotePause pauses playback', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Playing);
+
+    emitter.emit(Event.RemotePause);
+    await flushAsync();
+
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Paused);
+  });
+
+  it('default RemoteStop stops playback', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1)]);
+    await TrackPlayer.play();
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Playing);
+
+    emitter.emit(Event.RemoteStop);
+    await flushAsync();
+
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Stopped);
+  });
+
+  it('default RemoteNext advances to the next track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(0);
+
+    emitter.emit(Event.RemoteNext);
+    await flushAsync();
+
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(1);
+  });
+
+  it('default RemotePrevious goes to the previous track', async () => {
+    await setup();
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+    await TrackPlayer.skipToNext();
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(1);
+
+    emitter.emit(Event.RemotePrevious);
+    await flushAsync();
+
+    // skipToPrevious with position <= 3 goes back to track index 0
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(0);
+  });
+
+  it('custom onRemoteNext overrides default skipToNext', async () => {
+    const customNext = jest.fn();
+    await TrackPlayer.updateOptions({
+      controls: [],
+      remoteHandlers: { onRemoteNext: customNext },
+    });
+    await TrackPlayer.setQueue([track(1), track(2)]);
+    await TrackPlayer.play();
+
+    emitter.emit(Event.RemoteNext);
+    await flushAsync();
+
+    expect(customNext).toHaveBeenCalled();
+    // Default skipToNext was NOT called — index stays at 0
+    expect(TrackPlayer.getActiveTrackIndex()).toBe(0);
+  });
+
+  it('custom onRemotePlay overrides default play()', async () => {
+    const customPlay = jest.fn();
+    await TrackPlayer.updateOptions({
+      controls: [],
+      remoteHandlers: { onRemotePlay: customPlay },
+    });
+    await TrackPlayer.setQueue([track(1)]);
+
+    emitter.emit(Event.RemotePlay);
+    await flushAsync();
+
+    expect(customPlay).toHaveBeenCalled();
+    // Default play was NOT called — still Stopped
+    expect(TrackPlayer.getPlaybackState().state).toBe(State.Stopped);
+  });
+
+  it('re-wires handlers on each updateOptions call', async () => {
+    const first = jest.fn();
+    const second = jest.fn();
+
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: first } });
+    // Replace with second handler
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: second } });
+
+    emitter.emit(Event.RemotePlay);
+    await flushAsync();
+
+    expect(second).toHaveBeenCalled();
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('destroy() removes remote subscriptions', async () => {
+    const customPlay = jest.fn();
+    await TrackPlayer.updateOptions({ controls: [], remoteHandlers: { onRemotePlay: customPlay } });
+
+    await TrackPlayer.destroy();
+
+    emitter.emit(Event.RemotePlay);
+    await flushAsync();
+
+    expect(customPlay).not.toHaveBeenCalled();
   });
 });

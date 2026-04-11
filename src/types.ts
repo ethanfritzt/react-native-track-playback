@@ -69,15 +69,33 @@ export interface ActiveTrackChangedEvent {
 }
 
 /**
+ * Optional overrides for remote control events. Each key corresponds to a
+ * remote event; if provided, the function replaces the default handler for
+ * that event. If omitted, the default behavior is used.
+ */
+export interface RemoteHandlers {
+  onRemotePlay?: () => void | Promise<void>;
+  onRemotePause?: () => void | Promise<void>;
+  onRemoteStop?: () => void | Promise<void>;
+  onRemoteNext?: () => void | Promise<void>;
+  onRemotePrevious?: () => void | Promise<void>;
+  onRemoteSeek?: (event: RemoteSeekEvent) => void | Promise<void>;
+}
+
+/**
  * Options passed to TrackPlayer.updateOptions().
  *
  * @param controls - Controls shown in the system media notification /
  *   lock screen. Maps to RNAP's PlaybackNotificationManager.enableControl().
- *   Only the listed controls are enabled; all others are explicitly
- *   disabled. Defaults to all controls disabled if omitted.
+ *   Only the listed capabilities are enabled; all others are explicitly
+ *   disabled. Defaults to all capabilities disabled if omitted.
+ * @param remoteHandlers - Optional per-event overrides for remote control
+ *   events. Omitting a handler uses the default behavior; providing one
+ *   replaces it entirely.
  */
 export interface UpdateOptions {
   controls: Control[];
+  remoteHandlers?: RemoteHandlers;
 }
 
 /**
@@ -113,6 +131,7 @@ export interface EventPayloadMap {
   [Event.QueueChanged]: readonly Track[];
   [Event.RemotePlay]: void;
   [Event.RemotePause]: void;
+  [Event.RemoteStop]: void;
   [Event.RemoteNext]: void;
   [Event.RemotePrevious]: void;
   [Event.RemoteSeek]: RemoteSeekEvent;
