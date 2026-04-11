@@ -3,12 +3,8 @@ import { State } from '../types';
 import {
   getLastAudioContext,
   getCreatedStreamers,
-  getCreatedSources,
   clearCreatedStreamers,
-  clearCreatedSources,
   setStreamerAvailable,
-  setNextDecodeDuration,
-  decodeAudioData,
   MockAudioContext,
 } from '../__mocks__/react-native-audio-api';
 
@@ -37,9 +33,7 @@ function makeEngine(): PlaybackEngine {
 beforeEach(() => {
   jest.useFakeTimers();
   clearCreatedStreamers();
-  clearCreatedSources();
   setStreamerAvailable(true);
-  setNextDecodeDuration(30);
   jest.clearAllMocks();
 });
 
@@ -68,24 +62,12 @@ describe('init', () => {
     expect(ctx1).toBe(ctx2);
   });
 
-  it('sets streamingAvailable=true when createStreamer returns a node', () => {
+  it('uses the streamer path — a streamer is created on loadAndPlay', () => {
     setStreamerAvailable(true);
     const engine = makeEngine();
-    // loadAndPlay should use the streamer path — a streamer will be created
     return engine.loadAndPlay(makeTrack()).then(() => {
-      expect(getCreatedStreamers()).toHaveLength(
-        // 1 probe at init + 1 for playback = 2
-        2
-      );
+      expect(getCreatedStreamers()).toHaveLength(1);
     });
-  });
-
-  it('falls back to buffer path when createStreamer returns null', async () => {
-    setStreamerAvailable(false);
-    const engine = makeEngine();
-    await engine.loadAndPlay(makeTrack());
-    expect(getCreatedStreamers()).toHaveLength(0);
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -178,88 +160,6 @@ describe('loadAndPlay (streaming path)', () => {
     jest.spyOn(ctx, 'createStreamer').mockReturnValueOnce(failNode as any);
     await expect(patchedEngine.loadAndPlay(makeTrack())).rejects.toThrow('failed to initialize');
     expect(patchedEngine.getState()).toBe(State.Error);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Buffer fallback path — loadAndPlay
-// ---------------------------------------------------------------------------
-
-describe('loadAndPlay (buffer fallback path)', () => {
-  beforeEach(() => {
-    setStreamerAvailable(false);
-  });
-
-  it('calls decodeAudioData with the track URL', async () => {
-    const engine = makeEngine();
-    const track = makeTrack();
-    await engine.loadAndPlay(track);
-    expect(decodeAudioData).toHaveBeenCalledWith(track.url);
-  });
-
-  it('transitions through Buffering → Playing', async () => {
-    const engine = makeEngine();
-    // const states: State[] = []; // removed — unused
-    // Patch setState indirectly by observing state at each promise tick
-    // (simpler: just assert final state and that decodeAudioData was awaited)
-    await engine.loadAndPlay(makeTrack());
-    expect(engine.getState()).toBe(State.Playing);
-  });
-
-  it('uses buffer.duration as the reported duration', async () => {
-    setNextDecodeDuration(180);
-    const engine = makeEngine();
-    await engine.loadAndPlay(makeTrack());
-    expect(engine.getDuration()).toBe(180);
-  });
-
-  it('uses the prefetch cache on a URL match', async () => {
-    const engine = makeEngine();
-    const track = makeTrack();
-    // Prefetch track first
-    await engine.prefetchNext(track);
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
-    // loadAndPlay should hit the cache — no second decode
-    await engine.loadAndPlay(track);
-    expect(decodeAudioData).not.toHaveBeenCalled();
-  });
-
-  it('does not use prefetch cache on URL mismatch', async () => {
-    const engine = makeEngine();
-    await engine.prefetchNext(makeTrack(1));
-    jest.clearAllMocks();
-    await engine.loadAndPlay(makeTrack(2));
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// prefetchNext
-// ---------------------------------------------------------------------------
-
-describe('prefetchNext', () => {
-  it('is a no-op when streaming is available', async () => {
-    setStreamerAvailable(true);
-    const engine = makeEngine();
-    await engine.prefetchNext(makeTrack());
-    expect(decodeAudioData).not.toHaveBeenCalled();
-  });
-
-  it('decodes when streaming is unavailable', async () => {
-    setStreamerAvailable(false);
-    const engine = makeEngine();
-    await engine.prefetchNext(makeTrack());
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
-  });
-
-  it('skips re-fetch when the same URL is already prefetched', async () => {
-    setStreamerAvailable(false);
-    const engine = makeEngine();
-    const track = makeTrack();
-    await engine.prefetchNext(track);
-    await engine.prefetchNext(track);
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -396,35 +296,6 @@ describe('seekTo (streaming path)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// seekTo — buffer path
-// ---------------------------------------------------------------------------
-
-describe('seekTo (buffer fallback path)', () => {
-  beforeEach(() => setStreamerAvailable(false));
-
-  it('creates a new AudioBufferSourceNode for the new offset', async () => {
-    const engine = makeEngine();
-    await engine.loadAndPlay(makeTrack());
-    clearCreatedSources();
-
-    await engine.seekTo(15);
-
-    const src = getCreatedSources()[0]!;
-    expect(src.start).toHaveBeenCalledWith(0, 15);
-  });
-
-  it('stays Paused when seeking while paused', async () => {
-    const engine = makeEngine();
-    await engine.loadAndPlay(makeTrack());
-    await engine.pause();
-    clearCreatedSources();
-    await engine.seekTo(10);
-    expect(engine.getState()).toBe(State.Paused);
-    expect(engine.getPosition()).toBe(10);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Natural track end
 // ---------------------------------------------------------------------------
 
@@ -457,20 +328,6 @@ describe('onTrackEnded callback', () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it('fires the callback when the buffer source ends naturally (buffer path)', async () => {
-    setStreamerAvailable(false);
-    const engine = makeEngine();
-    const cb = jest.fn();
-    engine.onTrackEnded(cb);
-
-    await engine.loadAndPlay(makeTrack());
-    const sources = getCreatedSources();
-    const src = sources[sources.length - 1]!;
-    src.simulateEnded();
-
-    expect(cb).toHaveBeenCalledTimes(1);
-    expect(engine.getState()).toBe(State.Ended);
-  });
 });
 
 // ---------------------------------------------------------------------------

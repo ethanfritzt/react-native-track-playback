@@ -71,13 +71,6 @@ engine.onTrackEnded(async () => {
       lastIndex,
     });
 
-    // Kick off prefetch for the track after this one
-    const upcoming = queue.getTrack(nextIndex + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   } else {
     // Reached end of queue — reset engine to Stopped and notify listeners so
     // useProgress stops polling and active-track consumers see null.
@@ -118,10 +111,10 @@ const TrackPlayer = {
   },
 
   /**
-   * Configure playback capabilities (controls shown in the system notification).
+   * Configure playback controls (controls shown in the system notification).
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    await bridge.setup(options.capabilities);
+    await bridge.setup(options.controls);
   },
 
   // --------------------------------------------------------------------------
@@ -330,12 +323,6 @@ const TrackPlayer = {
       lastIndex,
     });
 
-    const upcoming = queue.getTrack(index + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   },
 
   /**

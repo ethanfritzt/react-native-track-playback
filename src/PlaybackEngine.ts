@@ -1,9 +1,6 @@
 import {
   AudioContext,
-  decodeAudioData,
-  type AudioBufferSourceNode,
   type GainNode,
-  type AudioBuffer,
   type StreamerNode,
 } from 'react-native-audio-api';
 import { Event, State, Track, PlaybackError } from './types';
@@ -14,20 +11,12 @@ import { emitter } from './EventEmitter';
  *
  * ## Playback strategy
  *
- * The engine prefers StreamerNode (true HTTP streaming via FFmpeg) over the
- * legacy decodeAudioData + AudioBufferSourceNode approach:
+ * The engine uses StreamerNode exclusively (true HTTP streaming via FFmpeg).
+ * Calls context.createStreamer(), then streamer.initialize(url) and streamer.start().
+ * Audio begins playing within ~1-2 seconds because the native layer starts decoding
+ * the stream progressively — no full-file download required before the first sample plays.
  *
- *   - StreamerNode: calls context.createStreamer(), then streamer.initialize(url)
- *     and streamer.start(). Audio begins playing within ~1-2 seconds because the
- *     native layer starts decoding the stream progressively — no full-file download
- *     required before the first sample plays.
- *
- *   - Fallback (decodeAudioData): if context.createStreamer() returns null (FFmpeg
- *     build not enabled), the engine falls back to fetching and decoding the entire
- *     file into an AudioBuffer before playback starts. This causes the 15-20s delay
- *     on remote Subsonic streams.
- *
- * To enable StreamerNode, the react-native-audio-api plugin must be built with FFmpeg
+ * StreamerNode requires the react-native-audio-api plugin to be built with FFmpeg
  * (disableFFmpeg: false, which is the default and is explicitly forwarded by the
  * react-native-track-playback Expo plugin).
  *
@@ -44,8 +33,6 @@ import { emitter } from './EventEmitter';
  *   While paused:   position = pausedPosition  (context.currentTime has stopped)
  *   Otherwise:      position = 0
  *
- * This formula works identically for both StreamerNode and AudioBufferSourceNode.
- *
  * ## Concurrency
  *
  *   loadAndPlay() is not re-entrant. Each call increments `loadGeneration`. The
@@ -58,21 +45,12 @@ export class PlaybackEngine {
   private context: AudioContext | null = null;
   private gainNode: GainNode | null = null;
 
-  // --- AudioBufferSourceNode path (decodeAudioData fallback) ---
-  private sourceNode: AudioBufferSourceNode | null = null;
-  private currentBuffer: AudioBuffer | null = null;
-
   // --- StreamerNode path ---
   private streamerNode: StreamerNode | null = null;
   /** URL of the track currently loaded into the streamer (needed for seekTo). */
   private currentTrackUrl: string | null = null;
   /** Duration from track metadata — used instead of buffer.duration when streaming. */
   private currentTrackDuration: number = 0;
-
-  // Prefetch cache — holds the decoded buffer for the next queued track.
-  // Only used in the decodeAudioData fallback path.
-  private prefetchBuffer: AudioBuffer | null = null;
-  private prefetchUrl: string | null = null;
 
   // Position tracking
   private playStartContextTime: number = 0;
@@ -83,13 +61,6 @@ export class PlaybackEngine {
 
   /** Called by TrackPlayer when a track ends naturally (not via stop/skip). */
   private endedCallback: (() => void) | null = null;
-
-  /**
-   * True when the AudioContext's createStreamer() returned a non-null node,
-   * indicating the FFmpeg build is available. Set on first init().
-   * undefined = not yet tested.
-   */
-  private streamingAvailable: boolean | undefined = undefined;
 
   /**
    * Monotonically incrementing counter. Incremented at the start of every
@@ -110,46 +81,17 @@ export class PlaybackEngine {
     this.context = new AudioContext();
     this.gainNode = this.context.createGain();
     this.gainNode.connect(this.context.destination);
-
-    // Probe for StreamerNode availability once at init time.
-    // createStreamer() returns null when the FFmpeg build is not enabled.
-    if (this.streamingAvailable === undefined) {
-      try {
-        const probe = this.context.createStreamer();
-        this.streamingAvailable = probe !== null;
-
-        // Immediately stop the probe so the native layer can release its
-        // resources (FFmpeg demuxer context, background thread, network
-        // socket). Without this the probe node stays alive until GC runs,
-        // which on Hermes/JSI is non-deterministic and can prevent subsequent
-        // createStreamer() calls from succeeding if the native layer enforces
-        // a single-active-streamer constraint.
-        if (probe) {
-          try {
-            probe.stop();
-          } catch {
-            /* not started — safe to ignore */
-          }
-        }
-      } catch {
-        this.streamingAvailable = false;
-      }
-    }
   }
 
   async destroy(): Promise<void> {
     // Invalidate any in-flight load so its async continuation is a no-op
     this.loadGeneration++;
     this.teardownSource();
-    this.currentBuffer = null;
     this.currentTrackUrl = null;
     this.currentTrackDuration = 0;
-    this.prefetchBuffer = null;
-    this.prefetchUrl = null;
     await this.context?.close();
     this.context = null;
     this.gainNode = null;
-    this.streamingAvailable = undefined;
     this.setState(State.None);
   }
 
@@ -169,11 +111,7 @@ export class PlaybackEngine {
     this.setState(State.Loading);
 
     try {
-      if (this.streamingAvailable) {
-        await this.loadAndPlayStreamer(track, startOffset, generation);
-      } else {
-        await this.loadAndPlayBuffer(track, startOffset, generation);
-      }
+      await this.loadAndPlayStreamer(track, startOffset, generation);
     } catch (err) {
       // Only update state for the load that is still current
       if (generation === this.loadGeneration) {
@@ -194,11 +132,7 @@ export class PlaybackEngine {
   ): Promise<void> {
     const streamer = this.context!.createStreamer();
     if (!streamer) {
-      // createStreamer() returned null at runtime despite probe succeeding —
-      // fall back to buffer path.
-      this.streamingAvailable = false;
-      await this.loadAndPlayBuffer(track, startOffset, generation);
-      return;
+      throw new Error('StreamerNode unavailable: FFmpeg build required');
     }
 
     streamer.connect(this.gainNode!);
@@ -248,45 +182,6 @@ export class PlaybackEngine {
     this.startStreamerEndedPoller(streamer);
   }
 
-  /**
-   * AudioBufferSourceNode path (fallback when FFmpeg / StreamerNode is unavailable).
-   * Downloads and decodes the entire audio file before playback begins.
-   */
-  private async loadAndPlayBuffer(
-    track: Track,
-    startOffset: number,
-    generation: number
-  ): Promise<void> {
-    let buffer: AudioBuffer;
-
-    // Use prefetched buffer if the URL matches — avoids a redundant fetch
-    if (this.prefetchUrl === track.url && this.prefetchBuffer) {
-      buffer = this.prefetchBuffer;
-      this.prefetchBuffer = null;
-      this.prefetchUrl = null;
-    } else {
-      buffer = await decodeAudioData(track.url);
-
-      // A newer loadAndPlay() fired while we were downloading — discard the
-      // decoded buffer and exit. The newer load has already taken ownership.
-      if (generation !== this.loadGeneration) return;
-    }
-
-    this.currentBuffer = buffer;
-    this.currentTrackDuration = buffer.duration;
-
-    // Resume context if previously suspended (e.g. after a pause from a previous track)
-    if (this.context!.state === 'suspended') {
-      await this.context!.resume();
-    }
-
-    // Check generation again after the async context.resume()
-    if (generation !== this.loadGeneration) return;
-
-    this.attachBufferSource(startOffset);
-    this.setState(State.Playing);
-  }
-
   async pause(): Promise<void> {
     if (this._state !== State.Playing) return;
     // Snapshot position before suspending — currentTime freezes after suspend
@@ -314,7 +209,6 @@ export class PlaybackEngine {
     // Invalidate any in-flight load
     this.loadGeneration++;
     this.teardownSource();
-    this.currentBuffer = null;
     this.currentTrackUrl = null;
     this.currentTrackDuration = 0;
     this.resetPositionTracking();
@@ -326,7 +220,7 @@ export class PlaybackEngine {
   }
 
   async seekTo(seconds: number): Promise<void> {
-    if (!this.currentTrackUrl && !this.currentBuffer) return;
+    if (!this.currentTrackUrl) return;
     this.ensureReady();
 
     const wasPlaying = this._state === State.Playing;
@@ -336,37 +230,30 @@ export class PlaybackEngine {
       await this.context!.resume();
     }
 
-    if (this.streamingAvailable && this.currentTrackUrl) {
-      // Streamer path: tear down and re-initialize at the new offset.
-      // StreamerNode doesn't support mid-stream seeking, so we must recreate it.
-      this.teardownSource();
+    // Streamer path: tear down and re-initialize at the new offset.
+    // StreamerNode doesn't support mid-stream seeking, so we must recreate it.
+    this.teardownSource();
 
-      const streamer = this.context!.createStreamer();
-      if (!streamer) {
-        this.streamingAvailable = false;
-        this.setState(State.Error);
-        return;
-      }
-
-      streamer.connect(this.gainNode!);
-
-      const seekUrl =
-        seconds > 0
-          ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
-          : this.currentTrackUrl;
-      streamer.initialize(seekUrl);
-
-      streamer.start(0);
-
-      this.playStartContextTime = this.context!.currentTime;
-      this.playStartOffset = seconds;
-      this.streamerNode = streamer;
-      this.startStreamerEndedPoller(streamer);
-    } else {
-      // Buffer path: tear down and re-attach at the new offset.
-      this.teardownSource();
-      this.attachBufferSource(seconds);
+    const streamer = this.context!.createStreamer();
+    if (!streamer) {
+      this.setState(State.Error);
+      return;
     }
+
+    streamer.connect(this.gainNode!);
+
+    const seekUrl =
+      seconds > 0
+        ? PlaybackEngine.urlWithTimeOffset(this.currentTrackUrl, seconds)
+        : this.currentTrackUrl;
+    streamer.initialize(seekUrl);
+
+    streamer.start(0);
+
+    this.playStartContextTime = this.context!.currentTime;
+    this.playStartOffset = seconds;
+    this.streamerNode = streamer;
+    this.startStreamerEndedPoller(streamer);
 
     if (wasPlaying) {
       this.setState(State.Playing);
@@ -375,33 +262,6 @@ export class PlaybackEngine {
       this.pausedPosition = seconds;
       await this.context!.suspend();
       this.setState(State.Paused);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Prefetching (buffer path only)
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Start decoding the next track in the background. The result is cached and
-   * used by loadAndPlay() if the URL matches, avoiding a redundant fetch.
-   * Failure is silently swallowed — loadAndPlay falls back to a fresh fetch.
-   *
-   * This is a no-op when StreamerNode is available, since streaming doesn't
-   * need pre-decoded buffers.
-   */
-  async prefetchNext(track: Track): Promise<void> {
-    // StreamerNode streams on-demand — no pre-fetching needed
-    if (this.streamingAvailable) return;
-
-    if (!this.context || track.url === this.prefetchUrl) return;
-    try {
-      const buffer = await decodeAudioData(track.url);
-      this.prefetchBuffer = buffer;
-      this.prefetchUrl = track.url;
-    } catch {
-      this.prefetchBuffer = null;
-      this.prefetchUrl = null;
     }
   }
 
@@ -475,41 +335,7 @@ export class PlaybackEngine {
   }
 
   /**
-   * Creates a new AudioBufferSourceNode, connects it to the gain node, and
-   * starts playback at the given offset. Buffer path only.
-   */
-  private attachBufferSource(offset: number): void {
-    const ctx = this.context!;
-    const source = ctx.createBufferSource();
-    source.buffer = this.currentBuffer!;
-    source.connect(this.gainNode!);
-
-    /**
-     * onEnded fires when the buffer plays through to its natural end.
-     * It also fires when .stop() is called — so we guard with the current
-     * state: only treat it as a natural end when we are still Playing.
-     */
-    source.onEnded = () => {
-      source.onEnded = null;
-      if (this._state === State.Playing) {
-        this.setState(State.Ended);
-        this.sourceNode = null;
-        Promise.resolve(this.endedCallback?.()).catch((err: Error) => {
-          emitter.emit(Event.PlaybackError, new PlaybackError(err.message, -1));
-        });
-      }
-    };
-
-    source.start(0, offset);
-
-    this.playStartContextTime = ctx.currentTime;
-    this.playStartOffset = offset;
-    this.sourceNode = source;
-  }
-
-  /**
-   * Stops and disconnects any active source node (streamer or buffer source)
-   * and nulls the refs.
+   * Stops and disconnects the active StreamerNode and nulls the ref.
    */
   private teardownSource(): void {
     this.clearStreamerEndedPoller();
@@ -520,17 +346,6 @@ export class PlaybackEngine {
         // Already stopped — safe to ignore
       }
       this.streamerNode = null;
-    }
-
-    if (this.sourceNode) {
-      // Clear the callback first — stop() triggers onEnded on some platforms
-      this.sourceNode.onEnded = null;
-      try {
-        this.sourceNode.stop();
-      } catch {
-        // Already stopped — safe to ignore
-      }
-      this.sourceNode = null;
     }
   }
 
