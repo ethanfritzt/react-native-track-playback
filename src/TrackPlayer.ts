@@ -136,7 +136,7 @@ const TrackPlayer = {
   },
 
   /**
-   * Configure playback capabilities (controls shown in the system notification)
+   * Configure playback controls (controls shown in the system notification)
    * and optionally override default remote event handlers.
    *
    * Default handlers for RemotePlay, RemotePause, RemoteStop, RemoteNext,
@@ -144,7 +144,7 @@ const TrackPlayer = {
    * `remoteHandlers` to replace any of them with custom behavior.
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    await bridge.setup(options.capabilities);
+    await bridge.setup(options.controls);
     wireRemoteHandlers(options.remoteHandlers);
   },
 
