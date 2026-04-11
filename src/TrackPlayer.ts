@@ -6,6 +6,7 @@ import {
   PlaybackState,
   Progress,
   UpdateOptions,
+  RemoteHandlers,
   PlaybackError,
   EventPayloadMap,
   Subscription,
@@ -71,13 +72,6 @@ engine.onTrackEnded(async () => {
       lastIndex,
     });
 
-    // Kick off prefetch for the track after this one
-    const upcoming = queue.getTrack(nextIndex + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   } else {
     // Reached end of queue — reset engine to Stopped and notify listeners so
     // useProgress stops polling and active-track consumers see null.
@@ -91,6 +85,34 @@ engine.onTrackEnded(async () => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Remote handler wiring
+// ---------------------------------------------------------------------------
+
+let remoteSubscriptions: Subscription[] = [];
+
+function wireRemoteHandlers(overrides: RemoteHandlers = {}): void {
+  // Remove previous wiring
+  remoteSubscriptions.forEach(s => s.remove());
+  remoteSubscriptions = [];
+
+  const sub = <E extends keyof EventPayloadMap>(
+    event: E,
+    handler: (payload: EventPayloadMap[E]) => void | Promise<void>
+  ) => {
+    remoteSubscriptions.push(
+      TrackPlayer.addEventListener(event, handler as (payload: EventPayloadMap[E]) => void)
+    );
+  };
+
+  sub(Event.RemotePlay, overrides.onRemotePlay ?? (() => TrackPlayer.play()));
+  sub(Event.RemotePause, overrides.onRemotePause ?? (() => TrackPlayer.pause()));
+  sub(Event.RemoteStop, overrides.onRemoteStop ?? (() => TrackPlayer.stop()));
+  sub(Event.RemoteNext, overrides.onRemoteNext ?? (() => TrackPlayer.skipToNext()));
+  sub(Event.RemotePrevious, overrides.onRemotePrevious ?? (() => TrackPlayer.skipToPrevious()));
+  sub(Event.RemoteSeek, overrides.onRemoteSeek ?? (({ position }) => TrackPlayer.seekTo(position)));
+}
 
 // ---------------------------------------------------------------------------
 // TrackPlayer public API
@@ -112,16 +134,24 @@ const TrackPlayer = {
    * call.
    */
   async destroy(): Promise<void> {
+    remoteSubscriptions.forEach(s => s.remove());
+    remoteSubscriptions = [];
     await engine.destroy();
     bridge.teardown();
     queue.reset();
   },
 
   /**
-   * Configure playback capabilities (controls shown in the system notification).
+   * Configure playback controls (controls shown in the system notification)
+   * and optionally override default remote event handlers.
+   *
+   * Default handlers for RemotePlay, RemotePause, RemoteStop, RemoteNext,
+   * RemotePrevious, and RemoteSeek are wired automatically. Pass
+   * `remoteHandlers` to replace any of them with custom behavior.
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    await bridge.setup(options.capabilities);
+    await bridge.setup(options.controls);
+    wireRemoteHandlers(options.remoteHandlers);
   },
 
   // --------------------------------------------------------------------------
@@ -330,12 +360,6 @@ const TrackPlayer = {
       lastIndex,
     });
 
-    const upcoming = queue.getTrack(index + 1);
-    if (upcoming) {
-      engine.prefetchNext(upcoming).catch(() => {
-        /* non-fatal */
-      });
-    }
   },
 
   /**

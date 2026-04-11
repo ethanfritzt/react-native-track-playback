@@ -128,6 +128,7 @@ function makeEngine(options?: {
 
 beforeEach(() => {
   jest.useFakeTimers();
+  jest.clearAllMocks();
 });
 
 afterEach(() => {
