@@ -1,5 +1,5 @@
 import { PlaybackNotificationManager } from 'react-native-audio-api';
-import { Capability, Event, State, Track } from './types';
+import { Control, Event, State, Track } from './types';
 import { emitter } from './EventEmitter';
 
 /**
@@ -9,16 +9,6 @@ import { emitter } from './EventEmitter';
  * Also handles updating the lock screen / notification metadata whenever
  * the active track or playback state changes.
  */
-
-// Maps our Capability enum values to RNAP's PlaybackControlName strings
-const CAPABILITY_TO_CONTROL: Partial<Record<Capability, string>> = {
-  [Capability.Play]:           'play',
-  [Capability.Pause]:          'pause',
-  // Note: RNAP has no 'stop' control — omit it; stop is handled by the app
-  [Capability.SkipToNext]:     'next',
-  [Capability.SkipToPrevious]: 'previous',
-  [Capability.SeekTo]:         'seekTo',
-};
 
 type RNAPSubscription = { remove: () => void };
 
@@ -36,7 +26,7 @@ export class NotificationBridge {
   // Setup / teardown
   // ---------------------------------------------------------------------------
 
-  async setup(capabilities: Capability[]): Promise<void> {
+  async setup(controls: Control[]): Promise<void> {
     this.teardown();
 
     // Enable only the requested controls; disable everything else.
@@ -44,20 +34,16 @@ export class NotificationBridge {
     // explicitly disabled (RNAP doesn't disable by default).
     // Only controls whose enabled/disabled state has changed since the last
     // setup() call are sent — this avoids redundant async work when
-    // updateOptions() is called more than once (e.g. per-track capability changes).
+    // updateOptions() is called more than once (e.g. per-track control changes).
     const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
     const changed = allRNAPControls.filter(control => {
-      const isEnabled = capabilities.some(
-        cap => CAPABILITY_TO_CONTROL[cap] === control
-      );
+      const isEnabled = (controls as string[]).includes(control);
       return this.appliedControls.get(control) !== isEnabled;
     });
 
     await Promise.all(
       changed.map(control => {
-        const isEnabled = capabilities.some(
-          cap => CAPABILITY_TO_CONTROL[cap] === control
-        );
+        const isEnabled = (controls as string[]).includes(control);
         this.appliedControls.set(control, isEnabled);
         return PlaybackNotificationManager.enableControl(control, isEnabled);
       })

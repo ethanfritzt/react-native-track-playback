@@ -105,10 +105,10 @@ const TrackPlayer = {
   },
 
   /**
-   * Configure playback capabilities (controls shown in the system notification).
+   * Configure playback controls (controls shown in the system notification).
    */
   async updateOptions(options: UpdateOptions): Promise<void> {
-    await bridge.setup(options.capabilities);
+    await bridge.setup(options.controls);
   },
 
   // --------------------------------------------------------------------------
