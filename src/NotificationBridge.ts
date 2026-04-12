@@ -36,16 +36,16 @@ export class NotificationBridge {
     // setup() call are sent — this avoids redundant async work when
     // updateOptions() is called more than once (e.g. per-track control changes).
     const allRNAPControls = Object.values(Control);
-    const changed = allRNAPControls.filter(control => {
+    const changed = allRNAPControls.filter((control) => {
       const isEnabled = controls.includes(control);
       return this.appliedControls.get(control) !== isEnabled;
     });
 
     await Promise.all(
-      changed.map(control => {
+      changed.map((control) => {
         const isEnabled = controls.includes(control);
         this.appliedControls.set(control, isEnabled);
-        return PlaybackNotificationManager.enableControl(control as Parameters<typeof PlaybackNotificationManager.enableControl>[0], isEnabled);
+        return PlaybackNotificationManager.enableControl(control, isEnabled);
       })
     );
 
