@@ -30,20 +30,20 @@ export class NotificationBridge {
     this.teardown();
 
     // Enable only the requested controls; disable everything else.
-    // We iterate over all known RNAP control names to ensure unused ones are
-    // explicitly disabled (RNAP doesn't disable by default).
+    // Use the public Control enum as the single source of truth for supported
+    // notification controls so the bridge stays aligned with library API.
     // Only controls whose enabled/disabled state has changed since the last
     // setup() call are sent — this avoids redundant async work when
     // updateOptions() is called more than once (e.g. per-track control changes).
-    const allRNAPControls = ['play', 'pause', 'next', 'previous', 'skipForward', 'skipBackward', 'seekTo'] as const;
+    const allRNAPControls = Object.values(Control);
     const changed = allRNAPControls.filter(control => {
-      const isEnabled = (controls as string[]).includes(control);
+      const isEnabled = controls.includes(control);
       return this.appliedControls.get(control) !== isEnabled;
     });
 
     await Promise.all(
       changed.map(control => {
-        const isEnabled = (controls as string[]).includes(control);
+        const isEnabled = controls.includes(control);
         this.appliedControls.set(control, isEnabled);
         return PlaybackNotificationManager.enableControl(control, isEnabled);
       })
