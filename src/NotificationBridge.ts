@@ -16,8 +16,8 @@ type PlaybackControlName = Parameters<typeof PlaybackNotificationManager.enableC
 const CONTROL_TO_RNAP_CONTROL: Record<Control, PlaybackControlName> = {
   [Control.Play]: 'play',
   [Control.Pause]: 'pause',
-  [Control.NextTrack]: 'next',
-  [Control.PreviousTrack]: 'previous',
+  [Control.NextTrack]: 'nextTrack',
+  [Control.PreviousTrack]: 'previousTrack',
   [Control.SkipForward]: 'skipForward',
   [Control.SkipBackward]: 'skipBackward',
   [Control.SeekTo]: 'seekTo',
