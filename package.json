@@ -1,6 +1,6 @@
 {
   "name": "react-native-track-playback",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A React Native audio playback library built on react-native-audio-api",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
