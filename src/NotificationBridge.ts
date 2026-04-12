@@ -11,17 +11,6 @@ import { emitter } from './EventEmitter';
  */
 
 type RNAPSubscription = { remove: () => void };
-type PlaybackControlName = Parameters<typeof PlaybackNotificationManager.enableControl>[0];
-
-const CONTROL_TO_RNAP_CONTROL: Record<Control, PlaybackControlName> = {
-  [Control.Play]: 'play',
-  [Control.Pause]: 'pause',
-  [Control.NextTrack]: 'nextTrack',
-  [Control.PreviousTrack]: 'previousTrack',
-  [Control.SkipForward]: 'skipForward',
-  [Control.SkipBackward]: 'skipBackward',
-  [Control.SeekTo]: 'seekTo',
-};
 
 export class NotificationBridge {
   private subscriptions: RNAPSubscription[] = [];
@@ -31,7 +20,7 @@ export class NotificationBridge {
    * Used by setup() to skip enableControl calls for controls that haven't changed,
    * avoiding unnecessary async work when updateOptions() is called more than once.
    */
-  private appliedControls: Map<PlaybackControlName, boolean> = new Map();
+  private appliedControls: Map<string, boolean> = new Map();
 
   // ---------------------------------------------------------------------------
   // Setup / teardown
@@ -41,23 +30,22 @@ export class NotificationBridge {
     this.teardown();
 
     // Enable only the requested controls; disable everything else.
-    // Use the public Control enum as the source of truth, then map to RNAP's
-    // concrete control names at the bridge boundary.
+    // Use the public Control enum as the single source of truth for supported
+    // notification controls so the bridge stays aligned with library API.
     // Only controls whose enabled/disabled state has changed since the last
     // setup() call are sent — this avoids redundant async work when
     // updateOptions() is called more than once (e.g. per-track control changes).
-    const enabledControls = new Set(controls.map(control => CONTROL_TO_RNAP_CONTROL[control]));
-    const allRNAPControls = Object.values(CONTROL_TO_RNAP_CONTROL);
+    const allRNAPControls = Object.values(Control);
     const changed = allRNAPControls.filter(control => {
-      const isEnabled = enabledControls.has(control);
+      const isEnabled = controls.includes(control);
       return this.appliedControls.get(control) !== isEnabled;
     });
 
     await Promise.all(
       changed.map(control => {
-        const isEnabled = enabledControls.has(control);
+        const isEnabled = controls.includes(control);
         this.appliedControls.set(control, isEnabled);
-        return PlaybackNotificationManager.enableControl(control, isEnabled);
+        return PlaybackNotificationManager.enableControl(control as Parameters<typeof PlaybackNotificationManager.enableControl>[0], isEnabled);
       })
     );
 
