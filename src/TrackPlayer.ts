@@ -363,13 +363,17 @@ const TrackPlayer = {
   },
 
   /**
-   * If more than 3 seconds into the current track, seek back to the start.
-   * Otherwise, go to the previous track.
+   * If more than `restartThreshold` seconds into the current track, seek back
+   * to the start. Otherwise, go to the previous track.
+   *
+   * @param restartThreshold - Seconds after which a "previous" press restarts
+   *   the current track instead of going back. Defaults to 3.
+   *   Pass 0 to always skip to the previous track.
    */
-  async skipToPrevious(): Promise<void> {
+  async skipToPrevious(restartThreshold = 3): Promise<void> {
     const position = engine.getPosition();
 
-    if (position > 3) {
+    if (position > restartThreshold) {
       await engine.seekTo(0);
       const track = queue.getActiveTrack();
       if (track) {
