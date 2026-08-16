@@ -15,7 +15,7 @@ export class PlaybackEngine {
   private trackListeners = new Set<TrackChangeListener>();
   private currentPosition = 0;
 
-  attatch(handle: AudioTagHandle | null): void {
+  attach(handle: AudioTagHandle | null): void {
     this.audioHandle = handle;
   }
 
@@ -72,7 +72,6 @@ export class PlaybackEngine {
 
   // note: do we even need this?
   loadAndPlay(track: Track): void {
-    this.currentTrackUrl = track?.url;
     this.notifyTrackChanged(track);
     this.setState(State.Loading);
 

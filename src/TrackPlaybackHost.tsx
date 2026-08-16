@@ -21,7 +21,7 @@ export function TrackPlaybackHost() {
 
   useEffect(() => {
     return () => {
-      playbackEngine.attatch(null);
+      playbackEngine.attach(null);
 
       contextRef.current?.close().catch((err) => console.log(err));
       contextRef.current = null;
@@ -31,7 +31,7 @@ export function TrackPlaybackHost() {
   return (
     <Audio
       context={contextRef.current}
-      ref={(handle: AudioTagHandle | null) => playbackEngine.attatch(handle)}
+      ref={(handle: AudioTagHandle | null) => playbackEngine.attach(handle)}
       source={track?.url ?? ''}
       onPositionChange={(position) => playbackEngine.setPosition(position)}
       onPause={() => playbackEngine.handlePaused()}
