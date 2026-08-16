@@ -7,7 +7,7 @@ import { Event, Track } from './types';
 import TrackPlayer from './TrackPlayer';
 
 export function TrackPlaybackHost() {
-  const [track, setTrack] = useState<Track | null>(null)
+  const [track, setTrack] = useState<Track | null>(() => TrackPlayer.getActiveTrack() ?? null)
   const contextRef = useRef<AudioContext | null>(null);
 
   if (!contextRef.current) {
@@ -19,7 +19,7 @@ export function TrackPlaybackHost() {
   useEffect(() => {
     const subscription = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (t) => { setTrack(t.track) });
 
-    return subscription.remove();
+    return () => subscription.remove();
   }, [])
 
   useEffect(() => {

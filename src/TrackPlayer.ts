@@ -137,7 +137,6 @@ const TrackPlayer = {
    * - Stopped / Ended / None: no-op on audio state, just resets cleanly
    */
   setQueue(tracks: Track[]): void {
-    playbackEngine.stop();
     queue.setQueue(tracks);
     emitQueueChanged();
   },
@@ -180,6 +179,7 @@ const TrackPlayer = {
    *
    * `url` cannot be changed here — use setQueue() or add() for that.
    */
+   // note: is this even used?
   async updateMetadataForTrack(index: number, metadata: TrackMetadata): Promise<void> {
     const updated = queue.updateTrack(index, metadata);
     if (!updated) return;
@@ -201,6 +201,7 @@ const TrackPlayer = {
    * Use this for ephemeral display updates (e.g. artwork arriving late, live
    * stream title changes) without permanently altering the queued track data.
    */
+   // note: is this even used?
   async updateNowPlayingMetadata(metadata: TrackMetadata): Promise<void> {
     const track = queue.getActiveTrack();
     if (!track) return;
