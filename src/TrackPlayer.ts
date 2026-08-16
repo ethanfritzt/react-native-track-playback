@@ -7,7 +7,6 @@ import {
   Progress,
   UpdateOptions,
   RemoteHandlers,
-  PlaybackError,
   EventPayloadMap,
   Subscription,
 } from './types';
@@ -39,52 +38,6 @@ _registerStateGetter(() => playbackEngine.getState());
 _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
 _registerQueueGetter(() => queue.getQueue());
 
-// Wire auto-advance: when a track ends naturally, move to the next one.
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-playbackEngine.onTrackEnded(async () => {
-  const lastTrack = queue.getActiveTrack() ?? null;
-  const lastIndex = queue.getActiveIndex();
-  const advanced = queue.skipToNext();
-
-  if (advanced) {
-    const next = queue.getActiveTrack()!;
-    const nextIndex = queue.getActiveIndex();
-
-    // Audio-start is the critical path — await it alone so the user hears
-    // audio as soon as possible. Notification update is metadata-only and
-    // does not affect playback correctness, so fire it without blocking.
-    try {
-      playbackEngine.loadAndPlay(next);
-    } catch (err: unknown) {
-      emitter.emit(
-        Event.PlaybackError,
-        new PlaybackError(err instanceof Error ? err.message : String(err), -1)
-      );
-      return;
-    }
-    bridge.updateNowPlaying(next, State.Playing, 0).catch(console.error);
-
-    emitter.emit(Event.PlaybackActiveTrackChanged, {
-      track: next,
-      index: nextIndex,
-      lastTrack,
-      lastIndex,
-    });
-
-  } else {
-    // Reached end of queue — reset playbackEngine to Stopped and notify listeners so
-    // useProgress stops polling and active-track consumers see null.
-    playbackEngine.stop();
-    await bridge.hide();
-    emitter.emit(Event.PlaybackActiveTrackChanged, {
-      track: null,
-      index: -1,
-      lastTrack,
-      lastIndex,
-    });
-  }
-});
-
 // ---------------------------------------------------------------------------
 // Remote handler wiring
 // ---------------------------------------------------------------------------
@@ -93,7 +46,7 @@ let remoteSubscriptions: Subscription[] = [];
 
 function wireRemoteHandlers(overrides: RemoteHandlers = {}): void {
   // Remove previous wiring
-  remoteSubscriptions.forEach(s => s.remove());
+  remoteSubscriptions.forEach((s) => s.remove());
   remoteSubscriptions = [];
 
   const sub = <E extends keyof EventPayloadMap>(
@@ -133,7 +86,7 @@ const TrackPlayer = {
    * call.
    */
   destroy(): void {
-    remoteSubscriptions.forEach(s => s.remove());
+    remoteSubscriptions.forEach((s) => s.remove());
     remoteSubscriptions = [];
     playbackEngine.stop();
     bridge.teardown();
@@ -286,8 +239,12 @@ const TrackPlayer = {
     const track = queue.getActiveTrack();
     if (track) {
       const index = queue.getActiveIndex();
-      playbackEngine.loadAndPlay(track);
+
+      playbackEngine.setPosition(0);
+      playbackEngine.setDuration(track?.duration ?? 0);
+
       bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
+
       emitter.emit(Event.PlaybackActiveTrackChanged, {
         track,
         index,
@@ -349,7 +306,9 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    playbackEngine.loadAndPlay(track);
+    playbackEngine.setPosition(0);
+    playbackEngine.setDuration(track?.duration ?? 0);
+
     bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
@@ -389,7 +348,9 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    playbackEngine.loadAndPlay(track);
+    playbackEngine.setPosition(0);
+    playbackEngine.setDuration(track?.duration ?? 0);
+
     bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {

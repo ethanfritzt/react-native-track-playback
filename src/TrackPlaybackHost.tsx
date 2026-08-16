@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Audio, type AudioTagHandle, AudioContext } from 'react-native-audio-api';
 
 import { playbackEngine } from './PlaybackEngine';
-import { Track } from './types';
+import { Event, Track } from './types';
+import TrackPlayer from './TrackPlayer';
 
 export function TrackPlaybackHost() {
   const [track, setTrack] = useState<Track | null>(null)
@@ -16,7 +17,9 @@ export function TrackPlaybackHost() {
   }
 
   useEffect(() => {
-    return playbackEngine.subscribeToTrack(setTrack)
+    const subscription = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (t) => { setTrack(t.track) });
+
+    return subscription.remove();
   }, [])
 
   useEffect(() => {
