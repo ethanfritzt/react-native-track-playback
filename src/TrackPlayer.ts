@@ -135,7 +135,7 @@ const TrackPlayer = {
   destroy(): void {
     remoteSubscriptions.forEach(s => s.remove());
     remoteSubscriptions = [];
-    playbackEngine.destroy();
+    playbackEngine.stop();
     bridge.teardown();
     queue.reset();
   },

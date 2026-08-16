@@ -64,13 +64,6 @@ export class PlaybackEngine {
   }
 
   // note: do we even need this?
-  destroy(): void {
-    this.currentTrackUrl = null;
-    this.currentTrackDuration = 0;
-    this.setState(State.None);
-  }
-
-  // note: do we even need this?
   loadAndPlay(track: Track): void {
     this.notifyTrackChanged(track);
     this.setState(State.Loading);
@@ -96,9 +89,12 @@ export class PlaybackEngine {
   }
 
   stop(): void {
+    this.currentPosition = 0;
     this.currentTrackUrl = null;
     this.currentTrackDuration = 0;
     this.setState(State.Stopped);
+
+    this.audioHandle?.pause();
   }
 
   getDuration(): number {
