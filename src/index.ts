@@ -22,3 +22,4 @@ export { usePlaybackState } from './hooks/usePlaybackState';
 export { useProgress } from './hooks/useProgress';
 export { useActiveTrack } from './hooks/useActiveTrack';
 export { useQueue } from './hooks/useQueue';
+export { TrackPlaybackHost } from './TrackPlaybackHost';

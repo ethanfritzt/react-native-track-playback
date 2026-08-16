@@ -12,7 +12,7 @@ import {
   Subscription,
 } from './types';
 import { QueueManager } from './QueueManager';
-import { PlaybackEngine } from './PlaybackEngine';
+import { playbackEngine } from './PlaybackEngine';
 import { NotificationBridge } from './NotificationBridge';
 import { emitter } from './EventEmitter';
 import { _registerProgressGetters } from './hooks/useProgress';
@@ -25,16 +25,15 @@ import { _registerQueueGetter } from './hooks/useQueue';
 // ---------------------------------------------------------------------------
 
 const queue = new QueueManager();
-const engine = new PlaybackEngine();
 const bridge = new NotificationBridge();
 
-// Wire engine getters into hooks at module-load time so hooks work correctly
+// Wire playbackEngine getters into hooks at module-load time so hooks work correctly
 _registerProgressGetters(
-  () => engine.getPosition(),
-  () => engine.getDuration(),
-  () => engine.getState()
+  () => playbackEngine.getPosition(),
+  () => playbackEngine.getDuration(),
+  () => playbackEngine.getState()
 );
-_registerStateGetter(() => engine.getState());
+_registerStateGetter(() => playbackEngine.getState());
 
 // Wire active-track getter into useActiveTrack without creating circular imports
 _registerActiveTrackGetter(() => queue.getActiveTrack() ?? null);
@@ -42,7 +41,7 @@ _registerQueueGetter(() => queue.getQueue());
 
 // Wire auto-advance: when a track ends naturally, move to the next one.
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-engine.onTrackEnded(async () => {
+playbackEngine.onTrackEnded(async () => {
   const lastTrack = queue.getActiveTrack() ?? null;
   const lastIndex = queue.getActiveIndex();
   const advanced = queue.skipToNext();
@@ -55,7 +54,7 @@ engine.onTrackEnded(async () => {
     // audio as soon as possible. Notification update is metadata-only and
     // does not affect playback correctness, so fire it without blocking.
     try {
-      await engine.loadAndPlay(next);
+      playbackEngine.loadAndPlay(next);
     } catch (err: unknown) {
       emitter.emit(
         Event.PlaybackError,
@@ -73,9 +72,9 @@ engine.onTrackEnded(async () => {
     });
 
   } else {
-    // Reached end of queue — reset engine to Stopped and notify listeners so
+    // Reached end of queue — reset playbackEngine to Stopped and notify listeners so
     // useProgress stops polling and active-track consumers see null.
-    await engine.stop();
+    playbackEngine.stop();
     await bridge.hide();
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: null,
@@ -133,10 +132,10 @@ const TrackPlayer = {
    * After calling destroy(), the player will auto-initialize on the next method
    * call.
    */
-  async destroy(): Promise<void> {
+  destroy(): void {
     remoteSubscriptions.forEach(s => s.remove());
     remoteSubscriptions = [];
-    await engine.destroy();
+    playbackEngine.destroy();
     bridge.teardown();
     queue.reset();
   },
@@ -179,13 +178,13 @@ const TrackPlayer = {
    * Replace the current queue without starting playback. The caller must
    * explicitly invoke play() to begin audio.
    *
-   * Always stops the engine before replacing the queue. This handles all states:
+   * Always stops the playbackEngine before replacing the queue. This handles all states:
    * - Playing / Paused: tears down the active source node
    * - Loading / Buffering: increments loadGeneration to cancel the in-flight load
    * - Stopped / Ended / None: no-op on audio state, just resets cleanly
    */
-  async setQueue(tracks: Track[]): Promise<void> {
-    await engine.stop();
+  setQueue(tracks: Track[]): void {
+    playbackEngine.stop();
     queue.setQueue(tracks);
     emitQueueChanged();
   },
@@ -237,7 +236,7 @@ const TrackPlayer = {
     // Only refresh the notification if this is the active track
     if (index === queue.getActiveIndex()) {
       const track = queue.getActiveTrack()!;
-      await bridge.updateNowPlaying(track, engine.getState(), engine.getPosition());
+      await bridge.updateNowPlaying(track, playbackEngine.getState(), playbackEngine.getPosition());
     }
   },
 
@@ -255,7 +254,7 @@ const TrackPlayer = {
 
     // Merge metadata over the active track without mutating the queue
     const merged: Track = { ...track, ...metadata };
-    await bridge.updateNowPlaying(merged, engine.getState(), engine.getPosition());
+    await bridge.updateNowPlaying(merged, playbackEngine.getState(), playbackEngine.getPosition());
   },
 
   // --------------------------------------------------------------------------
@@ -263,13 +262,13 @@ const TrackPlayer = {
   // --------------------------------------------------------------------------
 
   async play(): Promise<void> {
-    const state = engine.getState();
+    const state = playbackEngine.getState();
 
     if (state === State.Paused) {
-      await engine.resume();
+      playbackEngine.resume();
       const track = queue.getActiveTrack();
       if (track) {
-        await bridge.updateNowPlaying(track, State.Playing, engine.getPosition());
+        await bridge.updateNowPlaying(track, State.Playing, playbackEngine.getPosition());
       }
       return;
     }
@@ -282,12 +281,12 @@ const TrackPlayer = {
     // For all other states (Stopped, None, Ended, Error, Loading, Buffering):
     // cancel any in-flight load and start the active track from the beginning.
     // Loading/Buffering can occur if setQueue() was called while a previous
-    // load was in-flight — engine.loadAndPlay() increments loadGeneration, which
+    // load was in-flight — playbackEngine.loadAndPlay() increments loadGeneration, which
     // cancels the stale load before starting fresh.
     const track = queue.getActiveTrack();
     if (track) {
       const index = queue.getActiveIndex();
-      await engine.loadAndPlay(track);
+      playbackEngine.loadAndPlay(track);
       bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
       emitter.emit(Event.PlaybackActiveTrackChanged, {
         track,
@@ -299,17 +298,17 @@ const TrackPlayer = {
   },
 
   async pause(): Promise<void> {
-    await engine.pause();
+    playbackEngine.pause();
     const track = queue.getActiveTrack();
     if (track) {
-      await bridge.updateNowPlaying(track, State.Paused, engine.getPosition());
+      await bridge.updateNowPlaying(track, State.Paused, playbackEngine.getPosition());
     }
   },
 
   async stop(): Promise<void> {
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
-    await engine.stop();
+    playbackEngine.stop();
     await bridge.hide();
     emitter.emit(Event.PlaybackActiveTrackChanged, {
       track: null,
@@ -325,7 +324,7 @@ const TrackPlayer = {
   async reset(): Promise<void> {
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
-    await engine.stop();
+    playbackEngine.stop();
     queue.reset();
     await bridge.hide();
     emitter.emit(Event.PlaybackActiveTrackChanged, {
@@ -340,7 +339,7 @@ const TrackPlayer = {
   // Navigation
   // --------------------------------------------------------------------------
 
-  async skipToNext(): Promise<void> {
+  skipToNext(): void {
     const lastTrack = queue.getActiveTrack() ?? null;
     const lastIndex = queue.getActiveIndex();
     const advanced = queue.skipToNext();
@@ -350,7 +349,7 @@ const TrackPlayer = {
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await engine.loadAndPlay(track);
+    playbackEngine.loadAndPlay(track);
     bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
@@ -359,7 +358,6 @@ const TrackPlayer = {
       lastTrack,
       lastIndex,
     });
-
   },
 
   /**
@@ -367,13 +365,13 @@ const TrackPlayer = {
    * Otherwise, go to the previous track.
    */
   async skipToPrevious(): Promise<void> {
-    const position = engine.getPosition();
+    const position = playbackEngine.getPosition();
 
     if (position > 3) {
-      await engine.seekTo(0);
+      playbackEngine.seekTo(0);
       const track = queue.getActiveTrack();
       if (track) {
-        await bridge.updateNowPlaying(track, engine.getState(), 0);
+        await bridge.updateNowPlaying(track, playbackEngine.getState(), 0);
       }
       return;
     }
@@ -384,14 +382,14 @@ const TrackPlayer = {
 
     if (!went) {
       // Already at start — restart the current track instead
-      await engine.seekTo(0);
+      playbackEngine.seekTo(0);
       return;
     }
 
     const track = queue.getActiveTrack()!;
     const index = queue.getActiveIndex();
 
-    await engine.loadAndPlay(track);
+    playbackEngine.loadAndPlay(track);
     bridge.updateNowPlaying(track, State.Playing, 0).catch(console.error);
 
     emitter.emit(Event.PlaybackActiveTrackChanged, {
@@ -403,10 +401,10 @@ const TrackPlayer = {
   },
 
   async seekTo(seconds: number): Promise<void> {
-    await engine.seekTo(seconds);
+    playbackEngine.seekTo(seconds);
     const track = queue.getActiveTrack();
     if (track) {
-      await bridge.updateNowPlaying(track, engine.getState(), seconds);
+      await bridge.updateNowPlaying(track, playbackEngine.getState(), seconds);
     }
   },
 
@@ -420,16 +418,16 @@ const TrackPlayer = {
    */
   getPlaybackState(): PlaybackState {
     return {
-      state: engine.getState(),
-      position: engine.getPosition(),
-      duration: engine.getDuration(),
+      state: playbackEngine.getState(),
+      position: playbackEngine.getPosition(),
+      duration: playbackEngine.getDuration(),
     };
   },
 
   getProgress(): Progress {
     return {
-      position: engine.getPosition(),
-      duration: engine.getDuration(),
+      position: playbackEngine.getPosition(),
+      duration: playbackEngine.getDuration(),
     };
   },
 };
