@@ -43,8 +43,8 @@ export enum Event {
 export enum Control {
   Play = 'play',
   Pause = 'pause',
-  NextTrack = 'next',
-  PreviousTrack = 'previous',
+  NextTrack = 'nextTrack',
+  PreviousTrack = 'previousTrack',
   SkipForward = 'skipForward',
   SkipBackward = 'skipBackward',
   SeekTo = 'seekTo',
