@@ -59,10 +59,10 @@ export class NotificationBridge {
       ),
       // Note: RNAP has no 'stop' notification event. RemoteStop is not wired
       // here — it fires only from app-level calls to TrackPlayer.stop().
-      PlaybackNotificationManager.addEventListener('playbackNotificationNext', () =>
+      PlaybackNotificationManager.addEventListener('playbackNotificationNextTrack', () =>
         emitter.emit(Event.RemoteNext)
       ),
-      PlaybackNotificationManager.addEventListener('playbackNotificationPrevious', () =>
+      PlaybackNotificationManager.addEventListener('playbackNotificationPreviousTrack', () =>
         emitter.emit(Event.RemotePrevious)
       ),
       PlaybackNotificationManager.addEventListener(

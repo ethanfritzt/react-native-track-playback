@@ -31,6 +31,7 @@ export enum Event {
   PlaybackState = 'playback-state',
   PlaybackError = 'playback-error',
   PlaybackActiveTrackChanged = 'playback-active-track-changed',
+  PlaybackEnded = 'playback-ended',
   QueueChanged = 'queue-changed',
   RemotePlay = 'remote-play',
   RemotePause = 'remote-pause',
@@ -43,8 +44,8 @@ export enum Event {
 export enum Control {
   Play = 'play',
   Pause = 'pause',
-  NextTrack = 'next',
-  PreviousTrack = 'previous',
+  NextTrack = 'nextTrack',
+  PreviousTrack = 'previousTrack',
   SkipForward = 'skipForward',
   SkipBackward = 'skipBackward',
   SeekTo = 'seekTo',
@@ -128,6 +129,7 @@ export interface EventPayloadMap {
   [Event.PlaybackState]: PlaybackState;
   [Event.PlaybackError]: PlaybackError;
   [Event.PlaybackActiveTrackChanged]: ActiveTrackChangedEvent;
+  [Event.PlaybackEnded]: void;
   [Event.QueueChanged]: readonly Track[];
   [Event.RemotePlay]: void;
   [Event.RemotePause]: void;
